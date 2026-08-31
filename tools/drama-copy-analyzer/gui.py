@@ -1,20 +1,25 @@
 from __future__ import annotations
 
 from pathlib import Path
+import sys
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
 from analyzer import MODULE_TITLES, analyze, build_report
 
 
-APP_DIR = Path(__file__).resolve().parent
-SAMPLE_FILE = APP_DIR / "sample_script.txt"
+def _resource_path(name: str) -> Path:
+    base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
+    return base / name
+
+
+SAMPLE_FILE = _resource_path("sample_script.txt")
 
 
 class DramaCopyAnalyzerApp:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
-        self.root.title("短剧文案拆解工具 · 本地版")
+        self.root.title("短剧文案拆解工具 · Windows 本地版")
         self.root.geometry("1180x780")
         self.root.minsize(980, 680)
         self.result = {}
@@ -24,7 +29,7 @@ class DramaCopyAnalyzerApp:
         top = ttk.Frame(self.root, padding=(12, 10))
         top.pack(fill="x")
         ttk.Label(top, text="短剧文案拆解工具", font=("Microsoft YaHei UI", 18, "bold")).pack(side="left")
-        ttk.Label(top, text="  默认完全本地，不上传文案", foreground="#555555").pack(side="left", padx=(8, 0))
+        ttk.Label(top, text="  完全本地分析 · 不上传文案", foreground="#555555").pack(side="left", padx=(8, 0))
 
         toolbar = ttk.Frame(self.root, padding=(12, 0, 12, 8))
         toolbar.pack(fill="x")
@@ -108,7 +113,7 @@ class DramaCopyAnalyzerApp:
         try:
             content = self._read_text_file(SAMPLE_FILE)
         except Exception as exc:
-            messagebox.showerror("示例加载失败", f"找不到或无法读取 sample_script.txt：\n{exc}")
+            messagebox.showerror("示例加载失败", f"找不到或无法读取内置示例：\n{exc}")
             return
         self.input_text.delete("1.0", "end")
         self.input_text.insert("1.0", content)
@@ -135,8 +140,7 @@ class DramaCopyAnalyzerApp:
         if not source:
             messagebox.showwarning("无法导出", "当前没有文案。")
             return
-        current_result = analyze(source)
-        self.result = current_result
+        self.result = analyze(source)
         for key, _ in MODULE_TITLES:
             self._set_output(key, self.result.get(key, ""))
         report = build_report(source, self.result)
