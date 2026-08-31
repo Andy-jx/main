@@ -83,7 +83,7 @@ python main.py
 
 ### F. 高频词 Top10 + 金句候选
 
-输出高频词，并从原文挑选 3–5 条更适合单独拿出来做标题、封面或卡点字幕的句子。
+输出重复出现的中文 2–4 字词/短语（最多 10 条），并从原文挑选 3–5 条更适合单独拿出来做标题、封面或卡点字幕的句子。高频提取不会把整段中文硬切成随机四字片段。
 
 ### G. 可复用模板
 
@@ -114,20 +114,42 @@ SELF_CHECK_OK
 1) 示例八模块：PASS
 2) 新文案结果变化：PASS
 3) MD/TXT 报告八模块：PASS
-4) README Windows 运行说明：PASS
+4) 高频词重复提取：PASS
+5) README Windows 运行说明：PASS
 ```
+
+## 卖家打包独立 Windows 成品
+
+如果准备在闲鱼交付给普通用户，建议卖家自己先打包成独立程序，避免要求买家安装 Python。
+
+1. 卖家电脑先安装 Python 3.10+。
+2. 仅在打包电脑安装 PyInstaller：
+
+```bat
+py -m pip install pyinstaller
+```
+
+3. 双击 `build_release.bat`。
+4. 打包完成后，成品在：
+
+```text
+dist\短剧文案拆解工具\
+```
+
+PyInstaller 只是卖家打包工具，不是买家运行时依赖。正式售卖前，必须在一台没有 Python 的 Windows 电脑或虚拟机里验收以下四项：导入、试拆示例、开始拆解、导出 MD/TXT。
 
 ## 文件说明
 
 ```text
-main.py                程序入口
-gui.py                 Windows 中文图形界面
-analyzer.py            本地规则/启发式拆解引擎
-sample_script.txt       内置中文短剧示例
-self_check.py           验收自检脚本
-requirements.txt        依赖说明（当前无第三方依赖）
-run.bat                 Windows 一键启动
-README_使用说明.md       本说明
+main.py                 程序入口
+gui.py                  Windows 中文图形界面
+analyzer.py             本地规则/启发式拆解引擎
+sample_script.txt        内置中文短剧示例
+self_check.py            验收自检脚本
+requirements.txt         依赖说明（当前无第三方依赖）
+run.bat                  Windows 一键启动
+build_release.bat        卖家可选：打包独立 Windows 成品
+README_使用说明.md        本说明
 ```
 
 ## 当前版本边界
