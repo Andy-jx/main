@@ -23,7 +23,6 @@ class DramaCopyAnalyzerApp:
     def _build_ui(self) -> None:
         top = ttk.Frame(self.root, padding=(12, 10))
         top.pack(fill="x")
-
         ttk.Label(top, text="短剧文案拆解工具", font=("Microsoft YaHei UI", 18, "bold")).pack(side="left")
         ttk.Label(top, text="  默认完全本地，不上传文案", foreground="#555555").pack(side="left", padx=(8, 0))
 
@@ -102,7 +101,8 @@ class DramaCopyAnalyzerApp:
             return
         self.input_text.delete("1.0", "end")
         self.input_text.insert("1.0", content)
-        self.status_var.set(f"已导入：{Path(filename).name}")
+        self.result = {}
+        self.status_var.set(f"已导入：{Path(filename).name}，点击“开始拆解”。")
 
     def load_sample(self) -> None:
         try:
@@ -112,7 +112,9 @@ class DramaCopyAnalyzerApp:
             return
         self.input_text.delete("1.0", "end")
         self.input_text.insert("1.0", content)
-        self.status_var.set("已载入内置示例，可直接点击“开始拆解”。")
+        self.result = {}
+        self.run_analysis()
+        self.status_var.set("示例已载入并完成拆解：八个模块均已更新。")
 
     def run_analysis(self) -> None:
         source = self.input_text.get("1.0", "end").strip()
@@ -133,10 +135,10 @@ class DramaCopyAnalyzerApp:
         if not source:
             messagebox.showwarning("无法导出", "当前没有文案。")
             return
-        if not self.result:
-            self.result = analyze(source)
-            for key, _ in MODULE_TITLES:
-                self._set_output(key, self.result.get(key, ""))
+        current_result = analyze(source)
+        self.result = current_result
+        for key, _ in MODULE_TITLES:
+            self._set_output(key, self.result.get(key, ""))
         report = build_report(source, self.result)
         filetypes = [("Markdown", "*.md")] if extension == "md" else [("文本文件", "*.txt")]
         filename = filedialog.asksaveasfilename(
