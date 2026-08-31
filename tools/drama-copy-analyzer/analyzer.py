@@ -24,14 +24,15 @@ STOP_WORDS = {
 
 CONFLICT_WORDS = ("却", "但", "但是", "没想到", "谁知", "偏偏", "竟然", "反而", "突然", "结果", "不料", "可是", "然而", "转身", "下一秒")
 REVERSAL_WORDS = ("原来", "才发现", "真正", "真相", "没想到", "竟然", "反而", "直到这时", "身份", "其实")
-BACKGROUND_WORDS = ("三年前", "从前", "以前", "当时", "一直", "原本", "原来", "曾经", "为了", "因为", "从小", "每天", "这些年", "之前")
-NEG_WORDS = ("死", "哭", "恨", "骗", "背叛", "失去", "赶走", "拒绝", "崩溃", "威胁", "失败", "欠", "穷", "痛", "怕", "危险", "秘密", "离婚", "分手", "报复", "嘲笑", "看不起")
+BACKGROUND_WORDS = ("三年前", "从前", "以前", "当时", "一直", "原本", "曾经", "为了", "因为", "从小", "每天", "这些年", "之前", "平时", "工作", "生活")
+NEG_WORDS = ("死", "哭", "恨", "骗", "背叛", "失去", "赶走", "拒绝", "崩溃", "威胁", "失败", "欠", "穷", "痛", "怕", "危险", "秘密", "离婚", "分手", "报复", "嘲笑", "看不起", "羞辱")
 POS_WORDS = ("赢", "笑", "爱", "成功", "原谅", "重逢", "救", "真相", "希望", "幸福", "逆袭", "证明", "惊喜", "拿回")
 URGENT_WORDS = ("立刻", "马上", "快", "赶紧", "只剩", "最后", "下一秒", "突然", "现在", "来不及", "必须", "倒计时", "冲", "跑")
 CTA_WORDS = ("关注", "点赞", "评论", "收藏", "转发", "下一集", "主页", "继续看", "告诉我", "想知道", "点个", "下集")
 HOOK_WORDS = ("没想到", "竟然", "千万", "如果", "你敢信", "谁能想到", "直到", "第一天", "刚", "只因", "真相", "秘密", "所有人", "谁也没想到", "万万没想到")
-IDENTITY_WORDS = ("总裁", "老板", "董事长", "甲方", "负责人", "继承人", "千金", "少爷", "身份", "主位", "合同", "名字", "秘书")
+IDENTITY_WORDS = ("总裁", "老板", "董事长", "甲方", "负责人", "继承人", "千金", "少爷", "身份", "主位", "合同", "名字", "秘书", "股东", "董事")
 PRESSURE_WORDS = ("威胁", "拒绝", "赶走", "嘲笑", "逼", "抢", "打", "骂", "背叛", "离婚", "分手", "看不起", "羞辱")
+COMMON_SURNAMES = "赵钱孙李周吴郑王冯陈蒋沈韩杨朱秦许何吕张孔曹严华金魏陶姜谢邹潘葛范彭鲁韦马苗方俞任袁柳唐罗薛伍余姚孟顾尹江钟夏蔡田樊胡霍万卢莫房裘解丁邓洪包左石崔龚程陆翁荀于甄曲封储靳段富焦巴侯班秋仲宫宁仇甘厉祖武刘景詹龙叶司黎白怀蒲鄂赖卓谭劳姬申冉郦桑桂牛边燕浦尚温庄晏柴阎慕连习艾向古易慎廖曾关游权"
 
 
 def _clean(text: str) -> str:
@@ -59,17 +60,17 @@ def _has_any(s: str, words: Tuple[str, ...] | List[str]) -> bool:
     return any(w in s for w in words)
 
 
-def _clip(s: str, limit: int = 72) -> str:
+def _clip(s: str, limit: int = 82) -> str:
     s = s.strip()
     return s if len(s) <= limit else s[: limit - 1] + "…"
 
 
 def _hook_score_sentence(s: str, index: int = 0) -> int:
-    score = 24
+    score = 20
     if index <= 1:
-        score += 12
+        score += 8
     if _has_any(s, HOOK_WORDS):
-        score += 22
+        score += 24
     if _has_any(s, CONFLICT_WORDS) or _has_any(s, NEG_WORDS):
         score += 18
     if "？" in s or "?" in s:
@@ -103,29 +104,29 @@ def _hook_analysis(sentences: List[str]) -> str:
 
 def _structure_scores(p: str, index: int, total: int) -> Dict[str, int]:
     ratio = index / max(1, total - 1)
-    length = _visible_len(p)
     has_question = "？" in p or "?" in p
+    hook_signal = _has_any(p, HOOK_WORDS) or has_question or _has_any(p, CONFLICT_WORDS) or _has_any(p, NEG_WORDS)
 
     hook = 0
-    if ratio <= 0.30:
-        hook += 3
-    if _has_any(p, HOOK_WORDS):
-        hook += 4
-    if has_question and ratio <= 0.35:
+    if hook_signal and ratio <= 0.35:
         hook += 2
-    if _has_any(p, CONFLICT_WORDS) or _has_any(p, NEG_WORDS):
-        hook += 2
-    if length <= 55:
-        hook += 1
+        if _has_any(p, HOOK_WORDS):
+            hook += 4
+        if has_question:
+            hook += 2
+        if _has_any(p, CONFLICT_WORDS) or _has_any(p, NEG_WORDS):
+            hook += 2
+        if _visible_len(p) <= 60:
+            hook += 1
 
     setup = 0
-    if ratio <= 0.65:
-        setup += 2
+    if ratio <= 0.70:
+        setup += 1
     if _has_any(p, BACKGROUND_WORDS):
         setup += 4
-    if re.search(r"为了|因为|原本|曾经|一直|当时|三年前|之前", p):
+    if re.search(r"为了|因为|原本|曾经|一直|当时|三年前|之前|每天|平时|工作|生活", p):
         setup += 2
-    if not (_has_any(p, CONFLICT_WORDS) or _has_any(p, REVERSAL_WORDS) or _has_any(p, CTA_WORDS)):
+    if not (_has_any(p, CONFLICT_WORDS) or _has_any(p, REVERSAL_WORDS) or _has_any(p, CTA_WORDS) or _has_any(p, PRESSURE_WORDS)):
         setup += 2
 
     conflict = 0
@@ -135,22 +136,22 @@ def _structure_scores(p: str, index: int, total: int) -> Dict[str, int]:
         conflict += 3
     if _has_any(p, NEG_WORDS):
         conflict += 3
-    if re.search(r"不要|不许|必须|否则|失去|换掉|离开|当众|抢走", p):
+    if re.search(r"不要|不许|必须|否则|失去|换掉|离开|当众|抢走|拿走", p):
         conflict += 2
 
     reversal = 0
     if _has_any(p, REVERSAL_WORDS):
         reversal += 5
-    if ratio >= 0.30:
-        reversal += 2
-    if _has_any(p, IDENTITY_WORDS) and _has_any(p, ("真正", "原来", "才", "竟然", "名字", "主位")):
-        reversal += 3
-    if re.search(r"可.{0,12}(真正|却|竟|原来|才)", p):
+    if ratio >= 0.25:
+        reversal += 1
+    if _has_any(p, IDENTITY_WORDS) and _has_any(p, ("真正", "原来", "才", "竟然", "名字", "主位", "其实")):
+        reversal += 4
+    if re.search(r"可.{0,16}(真正|却|竟|原来|才|其实)", p):
         reversal += 2
 
     cta = 0
-    if ratio >= 0.70:
-        cta += 3
+    if ratio >= 0.65:
+        cta += 2
     if _has_any(p, CTA_WORDS):
         cta += 6
     if has_question and ratio >= 0.65:
@@ -166,21 +167,33 @@ def _structure_analysis(paragraphs: List[str], sentences: List[str]) -> str:
     tagged = []
     found = {"钩子": False, "铺垫": False, "冲突": False, "反转": False, "催行动作": False}
     total = len(paragraphs)
+    thresholds = {"钩子": 5, "铺垫": 4, "冲突": 5, "反转": 6, "催行动作": 6}
 
     for i, p in enumerate(paragraphs):
         scores = _structure_scores(p, i, total)
-        tag, best = max(scores.items(), key=lambda kv: kv[1])
-        thresholds = {"钩子": 5, "铺垫": 4, "冲突": 5, "反转": 6, "催行动作": 6}
-        if best < thresholds[tag]:
-            tag = "铺垫"
-            best = scores["铺垫"]
+        eligible = [(tag, score) for tag, score in scores.items() if score >= thresholds[tag]]
+        if not eligible:
+            tagged.append(f"[弱/缺失] {p}")
+            continue
+
+        tag, best = max(eligible, key=lambda kv: kv[1])
         if tag == "钩子" and i > max(1, total // 3):
-            tag = "铺垫"
+            alternatives = [(t, s) for t, s in eligible if t != "钩子"]
+            if alternatives:
+                tag, best = max(alternatives, key=lambda kv: kv[1])
+            else:
+                tagged.append(f"[弱/缺失] {p}")
+                continue
         if tag == "催行动作" and i < max(1, total // 2):
-            tag = "冲突" if scores["冲突"] >= 5 else "铺垫"
+            alternatives = [(t, s) for t, s in eligible if t != "催行动作"]
+            if alternatives:
+                tag, best = max(alternatives, key=lambda kv: kv[1])
+            else:
+                tagged.append(f"[弱/缺失] {p}")
+                continue
 
         found[tag] = True
-        confidence = "强" if best >= 8 else "中" if best >= 5 else "弱"
+        confidence = "强" if best >= 9 else "中" if best >= 6 else "弱"
         tagged.append(f"[{tag}｜{confidence}] {p}")
 
     explanations = {
@@ -199,7 +212,7 @@ def _conflict_score(s: str) -> int:
     score += 4 * sum(1 for w in PRESSURE_WORDS if w in s)
     score += 2 * sum(1 for w in CONFLICT_WORDS if w in s)
     score += 2 * sum(1 for w in NEG_WORDS if w in s)
-    if re.search(r"不要|不许|必须|否则|失去|换掉|离开|当众", s):
+    if re.search(r"不要|不许|必须|否则|失去|换掉|离开|当众|拿走", s):
         score += 2
     return score
 
@@ -284,8 +297,7 @@ def _keywords(text: str) -> List[Tuple[str, int]]:
             continue
         if chunk in STOP_WORDS:
             continue
-        max_n = min(4, len(chunk))
-        for n in range(2, max_n + 1):
+        for n in range(2, min(4, len(chunk)) + 1):
             for i in range(0, len(chunk) - n + 1):
                 token = chunk[i:i+n]
                 if token in STOP_WORDS:
@@ -329,46 +341,36 @@ def _freq_and_quotes(text: str, sentences: List[str]) -> str:
     return f"高频词 Top10：\n{kw_text}\n\n金句候选：\n{gold_text}"
 
 
+def _extract_names(text: str) -> List[str]:
+    followers = r"(?=只是|没有|就|又|还|却|把|被|在|来|问|说|走|带|脸色|一直|为了|主动|才|是|会|要|正|当|，|。|！|？|：|“|”|$)"
+    patterns = [
+        rf"(?:前男友|前女友|男友|女友|丈夫|妻子|老板|总裁|秘书|同事|经理|医生|警察)([{COMMON_SURNAMES}][\u4e00-\u9fff]{{1,2}}){followers}",
+        rf"([{COMMON_SURNAMES}][\u4e00-\u9fff]{{1,2}}){followers}",
+    ]
+    candidates: Counter[str] = Counter()
+    for pattern in patterns:
+        for match in re.finditer(pattern, text):
+            name = match.group(1)
+            if 2 <= len(name) <= 3:
+                candidates[name] += max(1, text.count(name))
+    ranked = sorted(candidates.items(), key=lambda kv: (-kv[1], text.find(kv[0])))
+    result = []
+    for name, _ in ranked:
+        if name not in result:
+            result.append(name)
+        if len(result) == 4:
+            break
+    return result
+
+
 def _find_best(sentences: List[str], scorer) -> str:
     if not sentences:
         return ""
     return max(sentences, key=scorer)
 
 
-def _hook_pattern(s: str) -> Tuple[str, str]:
-    if "以为" in s and _has_any(s, ("直到", "没想到", "却", "竟然")):
-        return "认知误判 → 反常事实", "【旁观者/对手】以为【主角的表面处境】，直到【打破认知的事实】出现。"
-    if "？" in s or "?" in s:
-        return "问题悬念 → 延迟答案", "【核心问题】先抛出来，但先不给答案，马上接【异常事件/风险】。"
-    if _has_any(s, ("秘密", "真相", "身份")):
-        return "秘密预告 → 信息差", "先告诉观众【存在一个秘密/隐藏身份】，但只揭一半，留下【关键缺口】。"
-    if _has_any(s, CONFLICT_WORDS) or _has_any(s, NEG_WORDS):
-        return "冲突先行 → 留结果", "第一句直接出现【对立动作/损失】，暂时不解释原因，把【结果】往后压。"
-    return "异常状态 → 未解释原因", "先给【不正常的状态/结果】，再补【人物与原因】，不要从背景介绍起笔。"
-
-
-def _conflict_pattern(s: str) -> Tuple[str, str]:
-    if _has_any(s, PRESSURE_WORDS):
-        return "角色施压 → 主角受阻", "【对手】用【具体动作】压制【主角目标】，并让主角面临【明确代价】。"
-    if re.search(r"离婚|分手|背叛|前男友|前女友|丈夫|妻子", s):
-        return "关系对立 → 公开碰撞", "先交代【旧关系】，再让【旧关系中的矛盾】在公开场合爆发。"
-    return "目标出现阻力 → 代价升级", "【主角想要的东西】遇到【阻力】，如果失败就会失去【具体代价】。"
-
-
-def _reversal_pattern(s: str) -> Tuple[str, str]:
-    if _has_any(s, IDENTITY_WORDS):
-        return "身份/权力揭示 → 强弱倒置", "前面先让观众相信【主角处于弱势】，后面用【身份/职位/权力证据】完成强弱翻转。"
-    if re.search(r"证据|合同|名字|照片|录音|视频|真相", s):
-        return "证据揭示 → 前文重解释", "先埋【误会/指控】，再用【证据】一次性重解释前文。"
-    return "隐藏事实揭露 → 预期翻转", "在冲突后揭开【此前隐藏的信息】，让观众重新理解【前面的事件】。"
-
-
-def _cta_pattern(s: str) -> Tuple[str, str]:
-    if "？" in s or "?" in s:
-        return "未解问题 → 下一段承诺", "结尾只留一个【二选一/结果问题】，再接【下一集/下一段】承诺。"
-    if _has_any(s, CTA_WORDS):
-        return "结果未揭晓 → 轻CTA", "先停在【未完成动作/未揭晓结果】，再给一个轻量【关注/下一集】动作。"
-    return "未完成动作 → 留白", "停在【下一步即将发生的关键动作】，不要把结果一次说完。"
+def _reversal_score(s: str) -> int:
+    return 5 * sum(w in s for w in REVERSAL_WORDS) + 2 * sum(w in s for w in IDENTITY_WORDS) + (2 if re.search(r"证据|合同|名字|录音|照片|视频", s) else 0)
 
 
 def _template(text: str, sentences: List[str]) -> str:
@@ -379,42 +381,49 @@ def _template(text: str, sentences: List[str]) -> str:
     hook = max(enumerate(opening_pool), key=lambda x: _hook_score_sentence(x[1], x[0]))[1]
     conflict_candidates = [s for s in sentences if _conflict_score(s) > 0]
     conflict = _find_best(conflict_candidates, _conflict_score) if conflict_candidates else ""
-    reversal_candidates = [s for s in sentences if _has_any(s, REVERSAL_WORDS) or (_has_any(s, IDENTITY_WORDS) and _has_any(s, ("真正", "名字", "主位", "才")))]
-    reversal = _find_best(reversal_candidates, lambda s: 5 * sum(w in s for w in REVERSAL_WORDS) + 2 * sum(w in s for w in IDENTITY_WORDS)) if reversal_candidates else ""
+    reversal_candidates = [s for s in sentences if _reversal_score(s) >= 5]
+    reversal = _find_best(reversal_candidates, _reversal_score) if reversal_candidates else ""
     ending_pool = sentences[-3:]
     cta_candidates = [s for s in ending_pool if _has_any(s, CTA_WORDS) or "？" in s or "?" in s]
     cta = cta_candidates[-1] if cta_candidates else ending_pool[-1]
 
-    hp, hs = _hook_pattern(hook)
-    cp, cs = _conflict_pattern(conflict) if conflict else ("冲突偏弱", "补一段：【主角目标】遭遇【具体阻力】，失败会失去【明确代价】。")
-    rp, rs = _reversal_pattern(reversal) if reversal else ("反转偏弱", "补一段：在冲突后揭开【隐藏事实/身份/证据】，重新解释前文。")
-    ep, es = _cta_pattern(cta)
+    names = _extract_names(text)
+    protagonist = next((n for n in names if n in "".join(opening_pool)), names[0] if names else "未识别到明确姓名")
+    opponent = next((n for n in names if n != protagonist and (not conflict or n in conflict)), "未识别到明确姓名")
+    action = next((w for w in PRESSURE_WORDS if conflict and w in conflict), next((w for w in CONFLICT_WORDS if conflict and w in conflict), "阻力事件"))
+    reversal_key = next((w for w in IDENTITY_WORDS if reversal and w in reversal), next((w for w in REVERSAL_WORDS if reversal and w in reversal), "隐藏事实"))
 
-    kws = _keywords(text)[:4]
-    focus = "、".join(w for w, _ in kws) if kws else "未提取到明显核心词"
-    mode = " → ".join([hp.split(" → ")[0], cp.split(" → ")[0], rp.split(" → ")[0], ep.split(" → ")[0]])
+    chain = [protagonist]
+    if conflict:
+        chain.append(f"遭遇“{action}”冲突")
+    else:
+        chain.append("冲突偏弱")
+    if reversal:
+        chain.append(f"通过“{reversal_key}”完成反转")
+    else:
+        chain.append("反转偏弱")
+    chain.append("留下未解问题" if ("？" in cta or "?" in cta or _has_any(cta, CTA_WORDS)) else "收束结果")
 
     parts = [
-        f"本文识别出的主打法：{mode}",
-        f"本文核心词：{focus}",
+        "本文已填槽结构：",
+        f"- 主角：{protagonist}",
+        f"- 对手/阻力方：{opponent}",
+        f"- 开头钩子：{_clip(hook)}",
+        f"- 核心冲突：{_clip(conflict) if conflict else '本文未识别到足够明确的冲突句'}",
+        f"- 冲突动作：{action}",
+        f"- 关键反转：{_clip(reversal) if reversal else '本文未识别到足够明确的反转句'}",
+        f"- 反转证据/机制：{reversal_key}",
+        f"- 收尾：{_clip(cta)}",
         "",
-        f"1. 钩子原型：{hp}",
-        f"   来自原句：「{_clip(hook)}」",
-        f"   可复用槽位：{hs}",
+        "本文结构链：" + " → ".join(chain),
         "",
-        f"2. 冲突原型：{cp}",
-        f"   来自原句：「{_clip(conflict) if conflict else '本文未识别到足够强的冲突句'}」",
-        f"   可复用槽位：{cs}",
+        "基于本文生成的复用提纲：",
+        f"1. 先让“{protagonist}”处在被低估、被误判或信息不完整的位置，并用原文钩子同类的反常事实迅速打破观众预期。",
+        f"2. 让“{opponent}”或同等阻力角色做出明确的“{action}”动作；不要只写态度，要让主角面临实际后果。",
+        f"3. 冲突升级后，再揭开类似“{reversal_key}”这样的证据/身份/事实，让前面的强弱关系重新解释。",
+        f"4. 收尾沿用本文“{_clip(cta, 46)}”的机制：停在一个尚未解决的问题或下一步动作上，不把结果一次讲完。",
         "",
-        f"3. 反转原型：{rp}",
-        f"   来自原句：「{_clip(reversal) if reversal else '本文未识别到明确反转句'}」",
-        f"   可复用槽位：{rs}",
-        "",
-        f"4. 收尾原型：{ep}",
-        f"   来自原句：「{_clip(cta)}」",
-        f"   可复用槽位：{es}",
-        "",
-        "套用时只复用“信息顺序和冲突机制”，人物、身份、事件、证据和结果必须换成新内容。",
+        "注意：这里提取的是本文的人物与事件机制。换题材时应替换人物、冲突事件和反转证据，不应直接照抄原文。",
     ]
     return "\n".join(parts)
 
@@ -432,36 +441,38 @@ def _advice(text: str, sentences: List[str], paragraphs: List[str]) -> str:
     opening_score = _hook_score_sentence(opening, 0)
     trigger = next((w for w in HOOK_WORDS + CONFLICT_WORDS if w in opening), "反常结果")
     if opening_score < 65:
-        advice.append(_advice_item("开头第1句", opening, f"把背景说明压缩，第一句末尾必须落到“{trigger}”对应的异常结果/冲突上；背景放到第2句以后。", f"当前首句钩子评分约 {opening_score}/100，信息差不足，容易在人物背景交代阶段掉人。"))
+        advice.append(_advice_item("开头第1句", opening, f"把背景说明压缩，第一句末尾落到“{trigger}”对应的异常结果/冲突上；背景放到第2句以后。", f"当前首句钩子评分约 {opening_score}/100，信息差不足，容易在背景交代阶段掉人。"))
     else:
-        advice.append(_advice_item("开头第1句", opening, "保留现有反差/悬念，不再继续往前加人物背景；如果要提速，只删解释词，不删结果词和转折词。", f"当前首句钩子已经较强（约 {opening_score}/100），主要风险不是不够猛，而是后续解释把首句优势稀释。"))
+        advice.append(_advice_item("开头第1句", opening, "保留现有反差/悬念，不再继续往前加背景；如果要提速，只删解释词，不删结果词和转折词。", f"当前首句钩子已经较强（约 {opening_score}/100），主要风险是后续解释稀释首句优势。"))
 
     conflict_candidates = [s for s in sentences if _conflict_score(s) > 0]
     if conflict_candidates:
         conflict = max(conflict_candidates, key=_conflict_score)
-        how = "把这句拆成“对立动作一句 + 后果一句”，并让后果单独成段；不要把冲突、原因、解释挤在同一句。" if _visible_len(conflict) > 34 else "把这句单独成段，并在下一句立刻补“如果失败会失去什么/谁会受到什么后果”，把冲突从态度升级为代价。"
-        advice.append(_advice_item("最强冲突句", conflict, how, "这句已经承担主要矛盾，单独强化它比再加一段泛情绪更有效。"))
+        action = next((w for w in PRESSURE_WORDS if w in conflict), "对立动作")
+        how = "把这句拆成“对立动作一句 + 后果一句”，让后果单独成段。" if _visible_len(conflict) > 34 else f"保留“{action}”这个动作，并紧接一句补出失败代价：主角会失去什么、谁会受影响。"
+        advice.append(_advice_item("最强冲突句", conflict, how, "这句承担主要矛盾，强化具体动作与代价，比再加泛情绪更有效。"))
     else:
         anchor = sentences[min(len(sentences) - 1, max(1, len(sentences)//2))]
         advice.append(_advice_item("正文中段", anchor, "紧接这句新增一个具体对立动作：谁阻止谁、做了什么、失败会失去什么。", "当前文本没有识别到足够强的冲突动作，中段容易只剩叙述。"))
 
-    reversal_candidates = [s for s in sentences if _has_any(s, REVERSAL_WORDS) or (_has_any(s, IDENTITY_WORDS) and _has_any(s, ("真正", "名字", "主位", "才")))]
+    reversal_candidates = [s for s in sentences if _reversal_score(s) >= 5]
     if reversal_candidates:
-        reversal = max(reversal_candidates, key=lambda s: sum(w in s for w in REVERSAL_WORDS) + sum(w in s for w in IDENTITY_WORDS))
-        advice.append(_advice_item("反转句", reversal, "在它前面提前埋一个同类细节（身份线索/证据/称呼/动作），但不要提前解释；到这句再一次揭开。", "这样反转会从“突然告诉观众答案”变成“前面有伏笔、此处完成兑现”，可信度和二次留存更好。"))
+        reversal = max(reversal_candidates, key=_reversal_score)
+        key = next((w for w in IDENTITY_WORDS if w in reversal), next((w for w in REVERSAL_WORDS if w in reversal), "反转证据"))
+        advice.append(_advice_item("反转句", reversal, f"在它前面提前埋一个与“{key}”同类的细节，但不要解释；到这句再揭开答案。", "这样反转会从突然告知变成前有伏笔、此处兑现，可信度和二次留存更好。"))
     else:
         anchor = sentences[max(0, len(sentences) * 2 // 3 - 1)]
-        advice.append(_advice_item("后半段转折位", anchor, "在这句后面补一个能重新解释前文的隐藏事实，优先用身份、证据、误会或真正目的。", "当前后半段缺少明确反转，剧情只有推进，没有第二个留存峰值。"))
+        advice.append(_advice_item("后半段转折位", anchor, "在这句后补一个能重新解释前文的隐藏事实，优先用身份、证据、误会或真正目的。", "当前后半段缺少明确反转，剧情只有推进，没有第二个留存峰值。"))
 
     longest = max(sentences, key=_visible_len)
     if _visible_len(longest) >= 32:
-        advice.append(_advice_item("最长句", longest, "按逗号/转折处拆成两句：第一句只放动作或事实，第二句只放后果或判断。", f"这句约 {_visible_len(longest)} 字，明显高于短视频口播舒适区，字幕和配音都容易拖。"))
+        advice.append(_advice_item("最长句", longest, "按逗号/转折处拆成两句：第一句只放动作或事实，第二句只放后果或判断。", f"这句约 {_visible_len(longest)} 字，明显偏长，字幕和口播都容易拖。"))
 
     ending = sentences[-1]
     if _has_any(ending, CTA_WORDS) or "？" in ending or "?" in ending:
-        advice.append(_advice_item("结尾最后一句", ending, "保留一个最关键的未解问题即可；如果已经有“下一集/继续看”，不要再叠加点赞、关注、评论等多个动作。", "剧情型 CTA 的核心是让观众想知道下一步，而不是同时执行多个平台动作。"))
+        advice.append(_advice_item("结尾最后一句", ending, "只保留一个最关键的未解问题；如果已有“下一集/继续看”，不要再叠加点赞、关注、评论等多个动作。", "剧情型 CTA 的核心是让观众想知道下一步，而不是同时执行多个平台动作。"))
     else:
-        advice.append(_advice_item("结尾最后一句", ending, "把结尾改成“尚未解决的问题 + 下一步即将发生的动作”，必要时再接一次轻量“下一集”。", "当前最后一句把信息收得太完整，缺少自然的续看理由。"))
+        advice.append(_advice_item("结尾最后一句", ending, "改成“尚未解决的问题 + 下一步即将发生的动作”，必要时再接一次轻量“下一集”。", "当前结尾收得太完整，缺少自然的续看理由。"))
 
     if len(paragraphs) <= 2 and len(sentences) >= 8:
         anchor = sentences[len(sentences)//2]
@@ -471,7 +482,7 @@ def _advice(text: str, sentences: List[str], paragraphs: List[str]) -> str:
     if kws:
         top = kws[0][0]
         related = next((s for s in sentences if top in s), opening)
-        advice.append(_advice_item("核心词所在句", related, f"标题或封面只抓“{top}”附近最强的一个冲突结果，不要把本文多个角色关系和背景同时塞进标题。", f"“{top}”是当前规则提取出的高频核心词之一，集中表达更利于观众一眼理解卖点。"))
+        advice.append(_advice_item("核心词所在句", related, f"标题或封面只抓“{top}”附近最强的一个冲突结果，不要把多个关系和背景同时塞进标题。", f"“{top}”是当前文本的高频核心词之一，集中表达更利于观众一眼理解。"))
 
     return "\n\n".join(f"{i+1}. {item}" for i, item in enumerate(advice[:8]))
 
