@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 import sys
 
 from analyzer import MODULE_TITLES, analyze, build_report
