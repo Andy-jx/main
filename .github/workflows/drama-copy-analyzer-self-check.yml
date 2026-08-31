@@ -27,7 +27,7 @@ jobs:
 
       - name: Compile Python files
         working-directory: tools/drama-copy-analyzer
-        run: python -m py_compile main.py gui.py analyzer.py self_check.py
+        run: python -m py_compile main.py gui.py analyzer.py coach.py rewriter.py self_check.py
 
       - name: Run acceptance self-check
         working-directory: tools/drama-copy-analyzer
