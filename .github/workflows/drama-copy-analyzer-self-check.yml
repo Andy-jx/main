@@ -1,0 +1,30 @@
+name: Drama Copy Analyzer Self Check
+
+on:
+  push:
+    branches:
+      - tool/drama-copy-analyzer
+    paths:
+      - "tools/drama-copy-analyzer/**"
+      - ".github/workflows/drama-copy-analyzer-self-check.yml"
+  pull_request:
+    paths:
+      - "tools/drama-copy-analyzer/**"
+      - ".github/workflows/drama-copy-analyzer-self-check.yml"
+
+jobs:
+  self-check:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile Python files
+        working-directory: tools/drama-copy-analyzer
+        run: python -m py_compile main.py gui.py analyzer.py self_check.py
+      - name: Run acceptance self-check
+        working-directory: tools/drama-copy-analyzer
+        run: python self_check.py
