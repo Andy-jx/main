@@ -26,15 +26,21 @@ def main() -> None:
     for key, title in MODULE_TITLES:
         assert f"## {key}. {title}" in report
 
+    freq_text = "老板拿走合同。老板又把合同拿回来。公司的人都在等老板，公司最后还是签了合同。"
+    freq_result = analyze(freq_text)["F"]
+    assert "老板" in freq_result
+    assert "合同" in freq_result
+
     readme = (ROOT / "README_使用说明.md").read_text(encoding="utf-8")
-    for required in ("Windows", "run.bat", "不保证", "完全本地"):
+    for required in ("Windows", "run.bat", "build_release.bat", "不保证", "完全本地"):
         assert required in readme
 
     print("SELF_CHECK_OK")
     print("1) 示例八模块：PASS")
     print("2) 新文案结果变化：PASS")
     print("3) MD/TXT 报告八模块：PASS")
-    print("4) README Windows 运行说明：PASS")
+    print("4) 高频词重复提取：PASS")
+    print("5) README Windows 运行说明：PASS")
 
 
 if __name__ == "__main__":
