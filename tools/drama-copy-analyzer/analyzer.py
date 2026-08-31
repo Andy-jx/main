@@ -180,13 +180,43 @@ def _rhythm(text: str, sentences: List[str], paragraphs: List[str]) -> str:
 
 
 def _keywords(text: str) -> List[Tuple[str, int]]:
-    cleaned = re.sub(r"[^\u4e00-\u9fffA-Za-z0-9]", "", text)
-    words = re.findall(r"[A-Za-z0-9]{2,}|[\u4e00-\u9fff]{2,4}", cleaned)
-    counter = Counter(w for w in words if w not in STOP_WORDS and not all(ch in "的一了是在我你他她它也都就又而与及把被让很更最还" for ch in w))
-    if len(counter) < 10:
-        chars = [c for c in cleaned if "\u4e00" <= c <= "\u9fff" and c not in "的一了是在我你他她它也都就又而与及把被让很更最还"]
-        counter.update(chars)
-    return counter.most_common(10)
+    """提取重复出现的中文 2–4 字短语和英文/数字词，避免把全文硬切成随机片段。"""
+    function_chars = set("的一了是在我你他她它也都就又而与及把被让很更最还这那会能可才只却并从向到为着过")
+    bad_prefix_chars = set("个只条张句次位名家种件份场门群")
+    counter: Counter[str] = Counter()
+
+    chunks = re.findall(r"[A-Za-z0-9]{2,}|[\u4e00-\u9fff]{2,}", text)
+    for chunk in chunks:
+        if re.fullmatch(r"[A-Za-z0-9]{2,}", chunk):
+            counter[chunk.lower()] += 1
+            continue
+
+        for n in (2, 3, 4):
+            for i in range(len(chunk) - n + 1):
+                token = chunk[i:i + n]
+                if token in STOP_WORDS:
+                    continue
+                if token[0] in function_chars or token[-1] in function_chars:
+                    continue
+                if token[0] in bad_prefix_chars:
+                    continue
+                if all(ch in function_chars for ch in token):
+                    continue
+                if any(noise in token for noise in ("一个", "这个", "那个", "一下", "一句", "了一", "了个")):
+                    continue
+                counter[token] += 1
+
+    candidates = [(token, count) for token, count in counter.items() if count >= 2]
+    candidates.sort(key=lambda item: (item[1], len(item[0])), reverse=True)
+
+    selected: List[Tuple[str, int]] = []
+    for token, count in candidates:
+        if any(token in existing or existing in token for existing, _ in selected):
+            continue
+        selected.append((token, count))
+        if len(selected) >= 10:
+            break
+    return selected
 
 
 def _golden(sentences: List[str]) -> List[str]:
@@ -209,7 +239,7 @@ def _golden(sentences: List[str]) -> List[str]:
 def _freq_and_quotes(text: str, sentences: List[str]) -> str:
     kws = _keywords(text)
     gold = _golden(sentences)
-    kw_text = "、".join(f"{w}({c})" for w, c in kws) if kws else "无"
+    kw_text = "、".join(f"{w}({c})" for w, c in kws) if kws else "未发现重复度足够的高频词/短语"
     gold_text = "\n".join(f"- {s}" for s in gold) if gold else "- 暂无合适金句，建议补一句包含冲突或结果的独立短句。"
     return f"高频词 Top10：\n{kw_text}\n\n金句候选：\n{gold_text}"
 
