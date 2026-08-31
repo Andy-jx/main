@@ -1,4 +1,5 @@
 from pathlib import Path
+import sys
 
 from analyzer import MODULE_TITLES, analyze, build_report
 
@@ -7,6 +8,9 @@ ROOT = Path(__file__).resolve().parent
 
 
 def main() -> None:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+
     sample = (ROOT / "sample_script.txt").read_text(encoding="utf-8")
     first = analyze(sample)
 
