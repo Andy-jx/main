@@ -142,7 +142,7 @@ def run_checks(include_docs: bool = True, verbose: bool = True) -> None:
     freq_result = analyze(freq_text)["F"]
     assert "老板" in freq_result and "合同" in freq_result
 
-    # 新增：用本机假 llama-server 验证 HTTP/JSON/双引擎合同，不访问公网。
+    # 使用本机假 llama-server 验证 HTTP/JSON/双引擎合同，不访问公网。
     _check_local_ai_contract(sample, first)
 
     if include_docs:
@@ -150,18 +150,35 @@ def run_checks(include_docs: bool = True, verbose: bool = True) -> None:
         buyer_guide = (ROOT / "买家使用说明.txt").read_text(encoding="utf-8")
         build_script = (ROOT / "build_release.bat").read_text(encoding="utf-8")
         ai_build = (ROOT / "build_ai_release.bat").read_text(encoding="utf-8")
+        prepare_bat = (ROOT / "prepare_ai_runtime.bat").read_text(encoding="utf-8")
+        prepare_ps1 = (ROOT / "prepare_ai_runtime.ps1").read_text(encoding="utf-8")
         gui_code = (ROOT / "gui.py").read_text(encoding="utf-8")
         local_ai_code = (ROOT / "local_ai.py").read_text(encoding="utf-8")
+
         for required in (
-            "Windows", "build_ai_release.bat", "本地AI深度模式", "Qwen", "llama-server",
-            "不上传", "无需安装 Python", "极速规则模式",
+            "Windows", "build_ai_release.bat", "prepare_ai_runtime.bat", "本地AI深度模式",
+            "Qwen", "llama-server", "不上传", "无需安装 Python", "极速规则模式",
         ):
             assert required in readme, required
         for required in ("DramaCopyAnalyzer.exe", "本地AI", "不上传", "GGUF", "规则模式", "不保证爆款"):
             assert required in buyer_guide, required
         for required in ("Runtime", "Models", "DramaCopyAnalyzer_Windows.zip", "--self-check"):
             assert required in build_script, required
+
         assert "REQUIRE_AI" in ai_build and "DramaCopyAnalyzer_AI_Windows.zip" in ai_build
+        assert "prepare_ai_runtime.ps1" in prepare_bat
+        assert "cpu" in prepare_bat.lower() and "cuda12" in prepare_bat.lower()
+        for required in (
+            "Qwen3.5-4B-Q4_K_M.gguf",
+            "llama-*-bin-win-cpu-x64.zip",
+            "llama-*-bin-win-cuda-12.4-x64.zip",
+            "cudart-llama-bin-win-cuda-12.4-x64.zip",
+            "huggingface.co/unsloth/Qwen3.5-4B-GGUF",
+            "ggml-org/llama.cpp/releases",
+        ):
+            assert required in prepare_ps1, required
+        assert "-C -" in prepare_ps1, "模型/运行时大文件下载应保留断点续传能力"
+
         assert "本地AI设置" in gui_code and "本地AI深度模式" in gui_code
         assert 'LOCAL_HOST = "127.0.0.1"' in local_ai_code
         assert "http://{LOCAL_HOST}" in local_ai_code
@@ -177,6 +194,7 @@ def run_checks(include_docs: bool = True, verbose: bool = True) -> None:
         print("7) 127.0.0.1 假 llama-server AI改写：PASS")
         if include_docs:
             print("8) README / 买家说明 / AI出包脚本：PASS")
+            print("9) 一键准备 CPU/CUDA12 + Qwen 下载合同：PASS")
 
 
 def main() -> None:
