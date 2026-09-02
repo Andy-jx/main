@@ -27,7 +27,7 @@ jobs:
 
       - name: Compile Python files
         working-directory: tools/drama-copy-analyzer
-        run: python -m py_compile main.py gui.py analyzer.py coach.py rewriter.py self_check.py
+        run: python -m py_compile main.py gui.py analyzer.py coach.py rewriter.py local_ai.py ai_engine.py self_check.py
 
       - name: Run acceptance self-check
         working-directory: tools/drama-copy-analyzer
@@ -50,17 +50,23 @@ jobs:
             throw "Packaged executable self-check failed with exit code $($p.ExitCode)"
           }
 
-      - name: Assemble buyer package
+      - name: Assemble buyer shell package
         shell: pwsh
         working-directory: tools/drama-copy-analyzer
         run: |
           New-Item -ItemType Directory -Force -Path ".\release\DramaCopyAnalyzer_Windows" | Out-Null
           Copy-Item ".\dist\DramaCopyAnalyzer\*" ".\release\DramaCopyAnalyzer_Windows\" -Recurse -Force
           Copy-Item ".\买家使用说明.txt" ".\release\DramaCopyAnalyzer_Windows\买家使用说明.txt" -Force
+          Copy-Item ".\AI_本地模型部署说明.md" ".\release\DramaCopyAnalyzer_Windows\AI_本地模型部署说明.md" -Force
+          Copy-Item ".\THIRD_PARTY_NOTICES.md" ".\release\DramaCopyAnalyzer_Windows\THIRD_PARTY_NOTICES.md" -Force
+          New-Item -ItemType Directory -Force -Path ".\release\DramaCopyAnalyzer_Windows\Runtime" | Out-Null
+          New-Item -ItemType Directory -Force -Path ".\release\DramaCopyAnalyzer_Windows\Models" | Out-Null
+          Copy-Item ".\Runtime\README.txt" ".\release\DramaCopyAnalyzer_Windows\Runtime\README.txt" -Force
+          Copy-Item ".\Models\README.txt" ".\release\DramaCopyAnalyzer_Windows\Models\README.txt" -Force
           Compress-Archive -Path ".\release\DramaCopyAnalyzer_Windows" -DestinationPath ".\release\DramaCopyAnalyzer_Windows.zip" -Force
           (Get-FileHash ".\release\DramaCopyAnalyzer_Windows.zip" -Algorithm SHA256).Hash | Set-Content ".\release\DramaCopyAnalyzer_Windows.zip.sha256.txt" -Encoding ascii
 
-      - name: Upload Windows buyer package
+      - name: Upload Windows shell package
         uses: actions/upload-artifact@v4
         with:
           name: DramaCopyAnalyzer_Windows
