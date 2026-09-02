@@ -154,7 +154,7 @@ def run_checks(include_docs: bool = True, verbose: bool = True) -> None:
         local_ai_code = (ROOT / "local_ai.py").read_text(encoding="utf-8")
         for required in (
             "Windows", "build_ai_release.bat", "本地AI深度模式", "Qwen", "llama-server",
-            "不上传", "无需安装 Python", "规则极速模式",
+            "不上传", "无需安装 Python", "极速规则模式",
         ):
             assert required in readme, required
         for required in ("DramaCopyAnalyzer.exe", "本地AI", "不上传", "GGUF", "规则模式", "不保证爆款"):
