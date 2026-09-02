@@ -2,6 +2,45 @@
 
 本版本采用 **规则极速引擎 + llama.cpp 本地大模型引擎**。程序不会接受远程 API 地址，模型请求固定走 `127.0.0.1`。
 
+## 最省事：自动准备
+
+直接双击：
+
+```text
+prepare_ai_runtime.bat
+```
+
+选择：
+
+```text
+[1] 通用 CPU x64       兼容优先
+[2] NVIDIA CUDA 12 x64 性能优先
+```
+
+脚本会自动：
+
+1. 查询 `ggml-org/llama.cpp` 近期 GitHub Release。
+2. 下载匹配的 Windows x64 运行时。
+3. CUDA12 模式额外下载对应 CUDA runtime DLL 包。
+4. 解压到 `Runtime\` 并确认 `llama-server.exe`。
+5. 下载 `Qwen3.5-4B-Q4_K_M.gguf` 到 `Models\`。
+6. 记录模型来源并尝试保存 llama.cpp LICENSE。
+7. curl 可用时支持大文件断点续传。
+
+准备完成后再双击：
+
+```text
+build_ai_release.bat
+```
+
+最终得到：
+
+```text
+release\DramaCopyAnalyzer_AI_Windows.zip
+```
+
+自动准备阶段需要联网、数 GB 磁盘空间。正式售卖前仍需核对实际下载的 llama.cpp 与模型许可证，并做真实 Windows 断网验收。
+
 ## 推荐结构
 
 ```text
@@ -16,9 +55,9 @@ DramaCopyAnalyzer_Windows\
 └─ 买家使用说明.txt
 ```
 
-## 运行时
+## 手动部署运行时
 
-使用 `ggml-org/llama.cpp` 的 Windows 预编译包或自行编译版本。把完整运行时复制进 `Runtime\`，最终必须存在：
+如果不使用自动准备脚本，可手动使用 `ggml-org/llama.cpp` 的 Windows 预编译包或自行编译版本。把完整运行时复制进 `Runtime\`，最终必须存在：
 
 ```text
 Runtime\llama-server.exe
@@ -26,7 +65,7 @@ Runtime\llama-server.exe
 
 不要只拿一个 exe。如果选择 CUDA/Vulkan 构建，随包 DLL 要一起保留。
 
-## 模型
+## 手动部署模型
 
 把 GGUF 放进：
 
@@ -50,19 +89,20 @@ Models\
 
 ## 正式 AI 出包
 
-先把 Runtime 和 Models 放好，然后双击：
+`build_ai_release.bat` 会强制检查：
 
 ```text
-build_ai_release.bat
+Runtime\llama-server.exe
+Models\*.gguf
 ```
 
-它会强制检查 `Runtime\llama-server.exe` 和至少一个 `Models\*.gguf`，通过后输出：
+通过后输出：
 
 ```text
 release\DramaCopyAnalyzer_AI_Windows.zip
 ```
 
-普通 `build_release.bat` 不强制要求模型，主要给 CI 和壳体测试使用。
+普通 `build_release.bat` 不强制要求模型，主要给 CI 和壳体测试使用。GitHub Actions 产物不是内置真实 Qwen 的正式商品包。
 
 ## 人工验收
 
@@ -79,4 +119,4 @@ release\DramaCopyAnalyzer_AI_Windows.zip
 
 ## 许可证
 
-若把 llama.cpp 二进制和第三方 GGUF 一起打包出售，请保留相应项目/模型许可证与 NOTICE 要求。详情见 `THIRD_PARTY_NOTICES.md`，正式发货前以你实际采用的运行时和模型仓库许可证为准。
+若把 llama.cpp 二进制和第三方 GGUF 一起打包出售，请保留相应项目/模型许可证与 NOTICE 要求。详情见 `THIRD_PARTY_NOTICES.md`，正式发货前以你实际采用的运行时和模型仓库许可证为准。自动下载脚本只负责记录来源，不等同于法律审查。
