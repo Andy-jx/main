@@ -35,7 +35,13 @@
 
 ## 推荐模型
 
-普通买家版本建议从 **Qwen3.5-4B / Q4_K_M GGUF** 起步。4B 量化模型更容易在常见 Windows 电脑上运行；更大的 8B/9B 可以提高部分复杂文案的理解能力，但加载更慢、内存要求更高、售后风险也更高。
+普通买家版本建议从 **Qwen3.5-4B / Q4_K_M GGUF** 起步。当前准备脚本默认文件名为：
+
+```text
+Qwen3.5-4B-Q4_K_M.gguf
+```
+
+4B 量化模型更容易在常见 Windows 电脑上运行；更大的 8B/9B 可以提高部分复杂文案的理解能力，但加载更慢、内存要求更高、售后风险也更高。
 
 模型不提交进 GitHub 仓库。卖家在本地加入实际 GGUF 后再打 AI 正式包。
 
@@ -52,6 +58,8 @@ gui.py                      Windows GUI / 双引擎 / AI设置 / 后台线程
 self_check.py               规则 + 本地AI合同测试
 Runtime\README.txt          llama.cpp 运行时放置说明
 Models\README.txt           GGUF 放置说明
+prepare_ai_runtime.bat      卖家双击选择 CPU / NVIDIA CUDA12
+prepare_ai_runtime.ps1      自动发现并下载 llama.cpp + 推荐 GGUF
 AI_本地模型部署说明.md
 build_release.bat           壳体/CI绿色包
 build_ai_release.bat        强制带 Runtime + GGUF 的正式 AI 包
@@ -71,7 +79,57 @@ run.bat
 
 业务代码只使用 Python 标准库；PyInstaller 仅用于卖家打包。
 
-## 普通壳体打包
+## 卖家最省事的正式 AI 出包流程
+
+### 第一步：双击准备本地 AI 环境
+
+```text
+prepare_ai_runtime.bat
+```
+
+菜单提供：
+
+```text
+[1] 通用 CPU x64       兼容优先
+[2] NVIDIA CUDA 12 x64 性能优先
+```
+
+脚本会：
+
+1. 从 `ggml-org/llama.cpp` 的近期 GitHub Release 中自动查找匹配的 Windows 运行时。
+2. CPU 模式下载 `llama-*-bin-win-cpu-x64.zip`。
+3. CUDA 12 模式下载 `llama-*-bin-win-cuda-12.4-x64.zip` 和对应 CUDA runtime DLL 包。
+4. 自动解压到 `Runtime\`，并确认 `Runtime\llama-server.exe` 存在。
+5. 下载推荐 `Qwen3.5-4B-Q4_K_M.gguf` 到 `Models\`。
+6. 下载/记录第三方来源与许可证提示。
+7. 大文件使用 curl 时支持断点续传。
+
+这一步需要联网并占用数 GB 磁盘空间。下载源或上游文件名未来若变化，脚本会直接报错，不会假装准备成功。
+
+### 第二步：生成正式买家包
+
+双击：
+
+```text
+build_ai_release.bat
+```
+
+它会强制检查：
+
+```text
+Runtime\llama-server.exe
+Models\*.gguf
+```
+
+然后运行源码自检、PyInstaller、打包后 EXE 自检，并生成：
+
+```text
+release\DramaCopyAnalyzer_AI_Windows.zip
+```
+
+这才是准备给买家做真实 AI 验收的包。
+
+## 普通壳体打包 / GitHub CI
 
 ```text
 build_release.bat
@@ -87,9 +145,9 @@ release\DramaCopyAnalyzer_Windows.zip
 
 **GitHub Actions 生成的 `DramaCopyAnalyzer_Windows` Artifact 是 AI 能力壳体/规则可用包，不包含数 GB 的真实 GGUF，也不保证包含正式 llama.cpp 运行时。它用于代码、Windows EXE 和本地接口验收，不应直接当作“内置 Qwen 的正式 AI 商品包”。**
 
-## 正式 AI 成品打包
+## 手动部署方式
 
-先按 `AI_本地模型部署说明.md` 放好：
+如果不使用自动准备脚本，也可以按 `AI_本地模型部署说明.md` 手动放好：
 
 ```text
 Runtime\llama-server.exe
@@ -97,17 +155,7 @@ Runtime\*.dll              如该构建需要
 Models\*.gguf
 ```
 
-再双击：
-
-```text
-build_ai_release.bat
-```
-
-脚本会强制检查运行时和模型，输出：
-
-```text
-release\DramaCopyAnalyzer_AI_Windows.zip
-```
+然后运行 `build_ai_release.bat`。
 
 买家 **无需安装 Python**。完整解压后双击 `DramaCopyAnalyzer.exe`。
 
@@ -128,7 +176,8 @@ py -3 self_check.py
 - AI Prompt 和 JSON 解析有效。
 - 使用 `127.0.0.1` 假 llama-server 完整跑通 AI 深度批改调用。
 - 使用 `127.0.0.1` 假 llama-server 完整跑通 AI 改写调用。
-- 不依赖公网 API。
+- 本地AI准备脚本固定推荐 Qwen3.5-4B Q4_K_M，并具备 CPU / CUDA12 两条运行时路径。
+- 不依赖公网 API 执行分析测试；自检本身不会下载模型。
 
 ## Windows 正式售卖前人工验收
 
@@ -153,7 +202,7 @@ py -3 self_check.py
 
 ## 第三方许可证
 
-如果卖家把 llama.cpp 二进制或 GGUF 模型直接打进商品包，请核对并随包保留实际采用版本的 LICENSE / NOTICE。见 `THIRD_PARTY_NOTICES.md`。
+如果卖家把 llama.cpp 二进制或 GGUF 模型直接打进商品包，请核对并随包保留实际采用版本的 LICENSE / NOTICE。自动准备脚本记录来源不等于替你完成法律审查；正式发货前仍应检查实际下载版本的许可条款。见 `THIRD_PARTY_NOTICES.md`。
 
 ## 免责
 
