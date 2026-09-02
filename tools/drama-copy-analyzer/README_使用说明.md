@@ -83,7 +83,9 @@ build_release.bat
 release\DramaCopyAnalyzer_Windows.zip
 ```
 
-该脚本会复制当前存在的 `Runtime` / `Models`，但不强制要求它们存在，因此 GitHub CI 可以只验证程序壳体与本地AI接口合同。
+该脚本会复制当前存在的 `Runtime` / `Models`，但不强制要求真实运行时和模型，因此 GitHub CI 可以只验证程序壳体与本地AI接口合同。
+
+**GitHub Actions 生成的 `DramaCopyAnalyzer_Windows` Artifact 是 AI 能力壳体/规则可用包，不包含数 GB 的真实 GGUF，也不保证包含正式 llama.cpp 运行时。它用于代码、Windows EXE 和本地接口验收，不应直接当作“内置 Qwen 的正式 AI 商品包”。**
 
 ## 正式 AI 成品打包
 
@@ -130,7 +132,7 @@ py -3 self_check.py
 
 ## Windows 正式售卖前人工验收
 
-即使 CI 全绿，也必须在没有 Python 的 Windows 10/11 电脑做真实模型测试：
+即使 CI 全绿，也必须在没有 Python 的 Windows 10/11 电脑用**真实 llama.cpp + 真实 GGUF**测试：
 
 1. 断网。
 2. 规则模式分析一次。
