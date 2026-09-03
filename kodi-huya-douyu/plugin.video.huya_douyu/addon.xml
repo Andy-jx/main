@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<addon id="plugin.video.huya_douyu" name="虎牙斗鱼直播" version="0.1.0" provider-name="Andy-jx">
+  <requires>
+    <import addon="xbmc.python" version="3.0.0"/>
+  </requires>
+  <extension point="xbmc.python.pluginsource" library="addon.py">
+    <provides>video</provides>
+  </extension>
+  <extension point="xbmc.addon.metadata">
+    <summary lang="zh_CN">Kodi 虎牙、斗鱼公开直播浏览与播放插件。</summary>
+    <description lang="zh_CN">独立的虎牙 + 斗鱼 Kodi 直播插件。支持热门直播、分类、搜索、房间号直开、本地收藏和清晰度选择，不依赖平台账号登录。</description>
+    <platform>all</platform>
+    <license>MIT</license>
+    <source>https://github.com/Andy-jx/main</source>
+  </extension>
+</addon>
