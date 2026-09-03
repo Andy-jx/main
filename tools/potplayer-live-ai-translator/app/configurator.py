@@ -96,8 +96,10 @@ def plugin_destination(potplayer_exe: Path) -> Path:
 def backup_existing_file(path: Path) -> Path | None:
     if not path.is_file():
         return None
-    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    backup = path.with_name(f"{path.stem}.backup-{stamp}{path.suffix}")
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+    backup_dir = path.parent / "_LocalAI_Backup"
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    backup = backup_dir / f"{path.name}.backup-{stamp}.bak"
     shutil.copy2(path, backup)
     return backup
 
@@ -205,7 +207,7 @@ class App(tk.Tk):
             "② 有字幕的视频：开启“字幕 → 实时字幕翻译”，选择“本地AI实时翻译（精准中文）”。\n"
             "③ 没字幕的视频：先在 PotPlayer 开启 Whisper/语音识别生成原文字幕，再开启实时翻译。\n"
             "④ 目标语言选 zh-CN。首次播放前建议先点“测试翻译”预热模型。\n"
-            "⑤ 重装插件时不会直接覆盖旧文件：配置器会先在原目录创建带时间戳的 backup 备份。"
+            "⑤ 重装前自动备份旧插件到 Translate\\_LocalAI_Backup，备份为 .bak，不会被 PotPlayer 当插件加载。"
         )
         ttk.Label(self, text=guide, justify="left", wraplength=750).pack(anchor="w", **pad)
 
