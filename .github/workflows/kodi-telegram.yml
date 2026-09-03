@@ -1,0 +1,45 @@
+name: Build Kodi Telegram add-on
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "kodi-telegram/**"
+      - ".github/workflows/kodi-telegram.yml"
+  pull_request:
+    paths:
+      - "kodi-telegram/**"
+      - ".github/workflows/kodi-telegram.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Build installable Kodi zip
+        run: python kodi-telegram/build_zip.py
+      - name: Inspect zip structure
+        run: |
+          python - <<'PY'
+          import glob, zipfile, xml.etree.ElementTree as ET
+          paths = glob.glob('kodi-telegram/dist/plugin.video.telegram.media-*.zip')
+          assert len(paths) == 1, paths
+          path = paths[0]
+          with zipfile.ZipFile(path) as z:
+              names = z.namelist()
+              assert 'plugin.video.telegram.media/addon.xml' in names
+              assert 'plugin.video.telegram.media/addon.py' in names
+              assert any(n.startswith('plugin.video.telegram.media/resources/lib/vendor/telethon/') for n in names)
+              root = ET.fromstring(z.read('plugin.video.telegram.media/addon.xml'))
+              assert root.attrib['id'] == 'plugin.video.telegram.media'
+              print(path, root.attrib['version'], len(names), 'files')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plugin.video.telegram.media
+          path: kodi-telegram/dist/plugin.video.telegram.media-*.zip
+          if-no-files-found: error
