@@ -38,11 +38,23 @@ def _parse_hot(value):
         return 0
 
 
+def _live_rows(rows):
+    out = []
+    for item in rows or []:
+        try:
+            if int(item.get("type", 1)) != 1:
+                continue
+        except Exception:
+            pass
+        out.append(item)
+    return out
+
+
 def hot_rooms(page=1):
     page = max(1, int(page))
     data = get_json(BASE + "/japi/weblist/apinc/allpage/6/%s" % page, headers={"Referer": BASE + "/"})
     block = data.get("data") or {}
-    rooms = [_room_item(x) for x in block.get("rl") or [] if int(x.get("type") or 1) == 1]
+    rooms = [_room_item(x) for x in _live_rows(block.get("rl"))]
     rooms = [x for x in rooms if x["room_id"]]
     return rooms, page < int(block.get("pgcnt") or page)
 
@@ -69,7 +81,7 @@ def category_rooms(category_id, page=1):
     page = max(1, int(page))
     data = get_json(BASE + "/gapi/rkc/directory/mixList/2_%s/%s" % (category_id, page), headers={"Referer": BASE + "/"})
     block = data.get("data") or {}
-    rooms = [_room_item(x) for x in block.get("rl") or [] if int(x.get("type") or 1) == 1]
+    rooms = [_room_item(x) for x in _live_rows(block.get("rl"))]
     rooms = [x for x in rooms if x["room_id"]]
     return rooms, page < int(block.get("pgcnt") or page)
 
@@ -83,12 +95,12 @@ def search_rooms(keyword, page=1):
         "User-Agent": DEFAULT_UA,
         "Cookie": "dy_did=%s;acf_did=%s" % (did, did),
     })
-    if int(data.get("error") or 0) != 0:
+    if int(data.get("error", -1)) != 0:
         raise RuntimeError(str(data.get("msg") or "斗鱼搜索失败"))
     rows = (data.get("data") or {}).get("relateShow") or []
     rooms = [_room_item(x) for x in rows]
     rooms = [x for x in rooms if x["room_id"]]
-    return rooms, bool(rows)
+    return rooms, len(rows) >= 20
 
 
 def _room_metadata(rid):
@@ -109,12 +121,15 @@ def _compute_auth(rid, ts, key, rand_str, enc_time, is_special):
 
 
 def _get_encryption(did):
-    data, headers = get_json_with_headers(URL_ENCRYPTION + "?" + urlencode({"did": did}), headers={"Referer": BASE + "/"})
+    data, headers = get_json_with_headers(
+        URL_ENCRYPTION + "?" + urlencode({"did": did}),
+        headers={"Referer": BASE + "/", "User-Agent": DEFAULT_UA},
+    )
     try:
         ts = int(parsedate_to_datetime(headers.get("Date") or headers.get("date") or "").timestamp())
     except Exception:
         ts = int(time.time())
-    if int(data.get("error") or -1) != 0 or not data.get("data"):
+    if int(data.get("error", -1)) != 0 or not data.get("data"):
         return None
     return ts, data["data"]
 
@@ -143,7 +158,7 @@ def _request_stream(rid, rate, did):
         "Content-Type": "application/x-www-form-urlencoded",
         "User-Agent": DEFAULT_UA,
     })
-    if int(data.get("error") or -1) != 0 or not data.get("data"):
+    if int(data.get("error", -1)) != 0 or not data.get("data"):
         return None
     return data["data"]
 
