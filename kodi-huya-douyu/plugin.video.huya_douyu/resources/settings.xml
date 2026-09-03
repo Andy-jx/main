@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<settings>
+  <category label="播放">
+    <setting id="ask_quality" type="bool" label="播放前选择清晰度" default="true"/>
+  </category>
+</settings>

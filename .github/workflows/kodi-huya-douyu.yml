@@ -1,0 +1,42 @@
+name: Build Kodi Huya Douyu add-on
+
+on:
+  push:
+    branches: [ main, tool/kodi-huya-douyu ]
+    paths:
+      - 'kodi-huya-douyu/**'
+      - '.github/workflows/kodi-huya-douyu.yml'
+  pull_request:
+    paths:
+      - 'kodi-huya-douyu/**'
+      - '.github/workflows/kodi-huya-douyu.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile Python
+        run: python -m compileall -q kodi-huya-douyu/plugin.video.huya_douyu
+      - name: Validate addon.xml
+        run: |
+          python - <<'PY'
+          import xml.etree.ElementTree as ET
+          p='kodi-huya-douyu/plugin.video.huya_douyu/addon.xml'
+          root=ET.parse(p).getroot()
+          assert root.attrib['id']=='plugin.video.huya_douyu'
+          print(root.attrib['id'], root.attrib['version'])
+          PY
+      - name: Build ZIP
+        run: python kodi-huya-douyu/build_zip.py
+      - name: Show ZIP content
+        run: unzip -l kodi-huya-douyu/dist/*.zip | head -80
+      - name: Upload ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: plugin.video.huya_douyu
+          path: kodi-huya-douyu/dist/*.zip
