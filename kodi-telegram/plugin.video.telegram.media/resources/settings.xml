@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<settings version="1">
+  <section id="plugin.video.telegram.media">
+    <category id="account" label="Telegram 账号">
+      <setting id="api_id" type="string" label="API ID" default=""/>
+      <setting id="api_hash" type="string" label="API Hash" default="">
+        <control type="edit" format="string">
+          <heading>API Hash</heading>
+          <hidden>true</hidden>
+        </control>
+      </setting>
+      <setting id="phone" type="string" label="登录手机号（含国家区号）" default=""/>
+    </category>
+    <category id="browse" label="浏览">
+      <setting id="page_size" type="integer" label="每页数量" default="20">
+        <constraints><minimum>8</minimum><maximum>50</maximum></constraints>
+        <control type="spinner" format="integer"/>
+      </setting>
+      <setting id="recent_dialog_limit" type="integer" label="最近视频扫描会话数（兜底）" default="12">
+        <constraints><minimum>6</minimum><maximum>30</maximum></constraints>
+        <control type="spinner" format="integer"/>
+      </setting>
+      <setting id="show_thumbnails" type="boolean" label="下载并显示视频缩略图" default="true"/>
+      <setting id="history_limit" type="integer" label="观看历史最多保留" default="200">
+        <constraints><minimum>20</minimum><maximum>1000</maximum></constraints>
+        <control type="spinner" format="integer"/>
+      </setting>
+    </category>
+    <category id="playback" label="播放">
+      <setting id="playback_mode" type="string" label="播放方式" default="stream">
+        <constraints>
+          <options>
+            <option label="本机按需流式播放（推荐）">stream</option>
+            <option label="完整下载后播放（兼容模式）">download</option>
+          </options>
+        </constraints>
+        <control type="spinner" format="string"/>
+      </setting>
+      <setting id="stream_chunk_kb" type="integer" label="流式读取块大小（KB）" default="512">
+        <constraints><minimum>64</minimum><maximum>1024</maximum></constraints>
+        <control type="spinner" format="integer"/>
+      </setting>
+    </category>
+  </section>
+</settings>
