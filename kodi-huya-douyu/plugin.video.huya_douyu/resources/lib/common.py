@@ -11,6 +11,7 @@ from storage import has_favorite
 
 HANDLE = int(sys.argv[1])
 BASE_URL = sys.argv[0]
+PLATFORM_NAMES = {"huya": "虎牙", "douyu": "斗鱼", "yy": "YY"}
 
 
 def get_params():
@@ -28,7 +29,7 @@ def finish(succeeded=True, cache=False):
 
 
 def notify(message, level=xbmcgui.NOTIFICATION_INFO):
-    xbmcgui.Dialog().notification("虎牙斗鱼直播", message, level, 4200)
+    xbmcgui.Dialog().notification("虎牙斗鱼YY直播", message, level, 4200)
 
 
 def set_video_info(li, info):
@@ -65,6 +66,7 @@ def format_online(value):
 
 def add_room(item):
     platform = str(item.get("platform") or "")
+    platform_name = PLATFORM_NAMES.get(platform, platform or "直播")
     room_id = str(item.get("room_id") or "")
     title = str(item.get("title") or room_id or "直播间")
     user = str(item.get("user") or "")
@@ -83,8 +85,8 @@ def add_room(item):
     li.setProperty("IsPlayable", "true")
     set_video_info(li, {
         "title": title,
-        "plot": "%s直播间：%s\n房间号：%s" % ("虎牙" if platform == "huya" else "斗鱼", user, room_id),
-        "studio": "虎牙" if platform == "huya" else "斗鱼",
+        "plot": "%s直播间：%s\n房间号：%s" % (platform_name, user, room_id),
+        "studio": platform_name,
     })
 
     play_url = plugin_url(action="play", platform=platform, room_id=room_id, title=title)
@@ -129,9 +131,6 @@ def resolve_url(url, headers=None, mime=""):
     li = xbmcgui.ListItem(path=final_url)
     li.setProperty("IsPlayable", "true")
 
-    # 直播地址已经由插件明确解析完成，不让 Kodi 再做内容探测。
-    # 某些直播 CDN 对同一个短时鉴权 URL 的重复打开很敏感，
-    # ContentLookup 可能造成额外连接，从而表现为“播几秒后退出”。
     try:
         li.setContentLookup(False)
     except Exception:
