@@ -15,6 +15,15 @@ from http_client import DEFAULT_UA, get_json, get_text
 BASE = "https://www.huya.com"
 TOP_CATEGORIES = [("1", "网游"), ("2", "单机"), ("8", "娱乐"), ("3", "手游")]
 
+# 虎牙的分类配置接口偶尔会返回空数据或字段结构变化。
+# 先放一组稳定、最常用的娱乐分类，保证 Kodi 的“分类”永远不是空页面；
+# 后面再把官方动态分类合并进来。
+STATIC_CATEGORIES = [
+    {"id": "entertainment", "name": "[娱乐] 星秀 + 颜值", "thumb": ""},
+    {"id": "1663", "name": "[娱乐] 星秀", "thumb": "https://huyaimg.msstatic.com/cdnimage/game/1663-MS.jpg"},
+    {"id": "2135", "name": "[娱乐] 颜值", "thumb": "https://huyaimg.msstatic.com/cdnimage/game/2135-MS.jpg"},
+]
+
 
 def _room_item(item):
     title = item.get("introduction") or item.get("roomName") or item.get("game_roomName") or "虎牙直播"
@@ -40,42 +49,70 @@ def hot_rooms(page=1):
 
 
 def categories():
-    out = []
+    out = [dict(x) for x in STATIC_CATEGORIES]
+    seen = {str(x["id"]) for x in out}
+
     for buss_type, group in TOP_CATEGORIES:
         try:
             data = get_json(
                 "https://live.cdn.huya.com/liveconfig/game/bussLive?" + urlencode({"bussType": buss_type}),
-                headers={"Referer": BASE + "/"},
+                headers={"Referer": BASE + "/", "User-Agent": DEFAULT_UA},
             )
-            for item in data.get("data") or []:
+            rows = data.get("data") or []
+            if isinstance(rows, dict):
+                rows = rows.get("list") or rows.get("data") or []
+            for item in rows:
                 gid = item.get("gid")
                 if isinstance(gid, dict):
                     gid = str(gid.get("value") or "").split(",")[0]
                 elif isinstance(gid, float):
                     gid = int(gid)
                 gid = str(gid or "")
-                if not gid:
+                if not gid or gid in seen:
                     continue
+                seen.add(gid)
                 out.append({
                     "id": gid,
                     "name": "[%s] %s" % (group, item.get("gameFullName") or gid),
                     "thumb": "https://huyaimg.msstatic.com/cdnimage/game/%s-MS.jpg" % gid,
                 })
         except Exception:
+            # 动态分类失败时保留上面的稳定分类，不让页面变空。
             continue
     return out
 
 
-def category_rooms(category_id, page=1):
+def _category_page(category_id, page=1):
     url = BASE + "/cache.php?" + urlencode({
         "m": "LiveList", "do": "getLiveListByPage", "tagAll": 0,
         "gameId": str(category_id), "page": int(page),
     })
-    data = get_json(url, headers={"Referer": BASE + "/"})
+    data = get_json(url, headers={"Referer": BASE + "/", "User-Agent": DEFAULT_UA})
     block = data.get("data") or {}
     rooms = [_room_item(x) for x in block.get("datas") or []]
     rooms = [x for x in rooms if x["room_id"]]
-    return rooms, int(block.get("page") or page) < int(block.get("totalPage") or page)
+    has_more = int(block.get("page") or page) < int(block.get("totalPage") or page)
+    return rooms, has_more
+
+
+def category_rooms(category_id, page=1):
+    if str(category_id) == "entertainment":
+        merged = []
+        seen = set()
+        has_more = False
+        for gid in ("1663", "2135"):
+            try:
+                rooms, more = _category_page(gid, page)
+                has_more = has_more or more
+                for room in rooms:
+                    rid = room.get("room_id")
+                    if rid and rid not in seen:
+                        seen.add(rid)
+                        merged.append(room)
+            except Exception:
+                continue
+        return merged, has_more
+    return _category_page(category_id, page)
 
 
 def search_rooms(keyword, page=1):
@@ -207,7 +244,6 @@ def _build_url(stream_info, bitrate, protocol="flv"):
 def _ordered_lines(lines):
     def key(item):
         cdn = str(item.get("sCdnType") or "").lower()
-        # AL 线路历史上更容易出现 403，放到最后。
         al_penalty = 1 if cdn == "al" or "al." in str(item.get("sFlvUrl") or "").lower() else 0
         try:
             priority = int(item.get("iWebPriorityRate") or 0)
@@ -219,7 +255,6 @@ def _ordered_lines(lines):
 
 
 def resolve_streams(room_id):
-    # 每次点击播放都重新抓房间页并重新生成短时鉴权地址，不复用旧播放 URL。
     page = get_text(
         BASE + "/" + quote(str(room_id)),
         headers={"Referer": BASE + "/", "User-Agent": DEFAULT_UA},
@@ -242,8 +277,6 @@ def resolve_streams(room_id):
         label = str(rate.get("sDisplayName") or ("原画" if bitrate == 0 else "%sk" % bitrate))
 
         chosen = None
-        # Kodi 对 HLS 的持续直播兼容通常比长连接 FLV 更稳，因此 HLS 优先。
-        # 如果某个房间/CDN 没有 HLS 参数，再自动回退 FLV。
         for protocol in ("hls", "flv"):
             for line in lines:
                 try:
