@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="plugin.video.huya_douyu" name="虎牙斗鱼YY直播" version="0.2.0" provider-name="Andy-jx">
+<addon id="plugin.video.huya_douyu" name="虎牙斗鱼YY直播" version="0.2.1" provider-name="Andy-jx">
   <requires>
     <import addon="xbmc.python" version="3.0.0"/>
   </requires>
@@ -12,6 +12,6 @@
     <platform>all</platform>
     <license>MIT</license>
     <source>https://github.com/Andy-jx/main</source>
-    <news lang="zh_CN">0.2.0：新增 YY 直播；修复虎牙分类空白，加入星秀、颜值稳定分类并继续动态补全官方分类。</news>
+    <news lang="zh_CN">0.2.1：修复 YY 分类空白，改为读取 YY 官方美女热舞、颜值、音乐、脱口秀、户外、喊麦、体育、二次元分类页，并增加多页推荐流兜底。</news>
   </extension>
 </addon>
