@@ -6,7 +6,7 @@ import re
 import xbmc
 import xbmcaddon
 
-from common import add_folder, add_room, choose, finish, get_params, input_text, notify, resolve_url
+from common import add_folder, add_room, choose, finish, get_params, input_text, notify, plugin_url, resolve_url
 from storage import add_favorite, load_favorites, remove_favorite
 
 
@@ -54,7 +54,14 @@ def show_hot(platform, page=1):
 def show_categories(platform):
     rows = _service(platform).categories()
     for row in rows:
-        add_folder(row.get("name") or row.get("id"), thumb=row.get("thumb") or "", action="category_rooms", platform=platform, category_id=row.get("id"), page=1)
+        add_folder(
+            row.get("name") or row.get("id"),
+            thumb=row.get("thumb") or "",
+            action="category_rooms",
+            platform=platform,
+            category_id=row.get("id"),
+            page=1,
+        )
     finish()
 
 
@@ -107,7 +114,10 @@ def open_room(platform, value=""):
         notify("没有识别到房间号")
         finish(False)
         return
-    play(platform, room_id)
+
+    target = plugin_url(action="play", platform=platform, room_id=room_id)
+    finish(False)
+    xbmc.Player().play(target)
 
 
 def play(platform, room_id):
@@ -118,7 +128,10 @@ def play(platform, room_id):
     ask = addon.getSetting("ask_quality").lower() != "false"
     selected = 0
     if ask and len(streams) > 1:
-        selected = choose([x.get("label") or "清晰度" for x in streams], "%s · 选择清晰度" % _platform_name(platform))
+        selected = choose(
+            [x.get("label") or "清晰度" for x in streams],
+            "%s · 选择清晰度" % _platform_name(platform),
+        )
         if selected < 0:
             return
     stream = streams[selected]
