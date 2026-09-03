@@ -41,11 +41,14 @@ def test_plugin_destination_is_inside_potplayer_tree(tmp_path):
     assert dest.parent.parts[-3:] == ("Extension", "Subtitle", "Translate")
 
 
-def test_backup_existing_file_preserves_original(tmp_path):
-    target = tmp_path / "sample.as"
+def test_backup_existing_file_preserves_original_and_is_inactive(tmp_path):
+    target = tmp_path / "Translate" / "sample.as"
+    target.parent.mkdir(parents=True)
     target.write_text("old", encoding="utf-8")
     backup = module.backup_existing_file(target)
     assert backup is not None
     assert target.read_text(encoding="utf-8") == "old"
     assert backup.read_text(encoding="utf-8") == "old"
+    assert backup.parent.name == "_LocalAI_Backup"
+    assert backup.suffix == ".bak"
     assert ".backup-" in backup.name
