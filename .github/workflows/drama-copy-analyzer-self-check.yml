@@ -1,0 +1,77 @@
+name: Drama Copy Analyzer Windows Build
+
+on:
+  push:
+    branches:
+      - tool/drama-copy-analyzer
+    paths:
+      - "tools/drama-copy-analyzer/**"
+      - ".github/workflows/drama-copy-analyzer-self-check.yml"
+  pull_request:
+    paths:
+      - "tools/drama-copy-analyzer/**"
+      - ".github/workflows/drama-copy-analyzer-self-check.yml"
+  workflow_dispatch:
+
+jobs:
+  self-check-and-package:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile Python files
+        working-directory: tools/drama-copy-analyzer
+        run: python -m py_compile main.py gui.py analyzer.py coach.py rewriter.py local_ai.py ai_engine.py self_check.py
+
+      - name: Run acceptance self-check
+        working-directory: tools/drama-copy-analyzer
+        run: python self_check.py
+
+      - name: Install packaging dependency
+        working-directory: tools/drama-copy-analyzer
+        run: python -m pip install -r requirements-build.txt
+
+      - name: Build PyInstaller green folder
+        working-directory: tools/drama-copy-analyzer
+        run: python -m PyInstaller --noconfirm --clean drama-copy-analyzer.spec
+
+      - name: Smoke-test packaged executable
+        shell: pwsh
+        working-directory: tools/drama-copy-analyzer
+        run: |
+          $p = Start-Process -FilePath ".\dist\DramaCopyAnalyzer\DramaCopyAnalyzer.exe" -ArgumentList "--self-check" -Wait -PassThru
+          if ($p.ExitCode -ne 0) {
+            throw "Packaged executable self-check failed with exit code $($p.ExitCode)"
+          }
+
+      - name: Assemble buyer shell package
+        shell: pwsh
+        working-directory: tools/drama-copy-analyzer
+        run: |
+          New-Item -ItemType Directory -Force -Path ".\release\DramaCopyAnalyzer_Windows" | Out-Null
+          Copy-Item ".\dist\DramaCopyAnalyzer\*" ".\release\DramaCopyAnalyzer_Windows\" -Recurse -Force
+          Copy-Item ".\买家使用说明.txt" ".\release\DramaCopyAnalyzer_Windows\买家使用说明.txt" -Force
+          Copy-Item ".\AI_本地模型部署说明.md" ".\release\DramaCopyAnalyzer_Windows\AI_本地模型部署说明.md" -Force
+          Copy-Item ".\THIRD_PARTY_NOTICES.md" ".\release\DramaCopyAnalyzer_Windows\THIRD_PARTY_NOTICES.md" -Force
+          New-Item -ItemType Directory -Force -Path ".\release\DramaCopyAnalyzer_Windows\Runtime" | Out-Null
+          New-Item -ItemType Directory -Force -Path ".\release\DramaCopyAnalyzer_Windows\Models" | Out-Null
+          Copy-Item ".\Runtime\README.txt" ".\release\DramaCopyAnalyzer_Windows\Runtime\README.txt" -Force
+          Copy-Item ".\Models\README.txt" ".\release\DramaCopyAnalyzer_Windows\Models\README.txt" -Force
+          Compress-Archive -Path ".\release\DramaCopyAnalyzer_Windows" -DestinationPath ".\release\DramaCopyAnalyzer_Windows.zip" -Force
+          (Get-FileHash ".\release\DramaCopyAnalyzer_Windows.zip" -Algorithm SHA256).Hash | Set-Content ".\release\DramaCopyAnalyzer_Windows.zip.sha256.txt" -Encoding ascii
+
+      - name: Upload Windows shell package
+        uses: actions/upload-artifact@v4
+        with:
+          name: DramaCopyAnalyzer_Windows
+          path: |
+            tools/drama-copy-analyzer/release/DramaCopyAnalyzer_Windows.zip
+            tools/drama-copy-analyzer/release/DramaCopyAnalyzer_Windows.zip.sha256.txt
+          if-no-files-found: error
+          retention-days: 14
