@@ -7,6 +7,7 @@ import subprocess
 import sys
 import threading
 import tkinter as tk
+from datetime import datetime
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 from urllib import error, request
@@ -88,6 +89,19 @@ def detect_potplayer() -> Path | None:
     return None
 
 
+def plugin_destination(potplayer_exe: Path) -> Path:
+    return potplayer_exe.parent / "Extension" / "Subtitle" / "Translate" / PLUGIN_NAME
+
+
+def backup_existing_file(path: Path) -> Path | None:
+    if not path.is_file():
+        return None
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    backup = path.with_name(f"{path.stem}.backup-{stamp}{path.suffix}")
+    shutil.copy2(path, backup)
+    return backup
+
+
 def ollama_json(path: str, payload: dict | None = None, timeout: int = 10) -> dict:
     url = OLLAMA_BASE + path
     data = None
@@ -116,12 +130,30 @@ def find_ollama_exe() -> str | None:
     return None
 
 
+def sample_translation(model: str, timeout: int = 90) -> str:
+    payload = {
+        "model": model,
+        "messages": [
+            {
+                "role": "system",
+                "content": "你是专业影视字幕翻译器。只输出自然、简洁的简体中文译文，不解释。",
+            },
+            {"role": "user", "content": "翻译日语字幕：今日は来てくれてありがとう。"},
+        ],
+        "stream": False,
+        "keep_alive": "30m",
+        "options": {"temperature": 0.1, "num_predict": 64},
+    }
+    result = ollama_json("/api/chat", payload=payload, timeout=timeout)
+    return str(result.get("message", {}).get("content", "")).strip()
+
+
 class App(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
         self.title(APP_TITLE)
-        self.geometry("760x560")
-        self.minsize(720, 520)
+        self.geometry("800x650")
+        self.minsize(760, 590)
 
         self.pot_var = tk.StringVar()
         self.model_var = tk.StringVar(value=DEFAULT_MODEL_HINT)
@@ -138,7 +170,7 @@ class App(tk.Tk):
         ttk.Label(
             self,
             text="用途：PotPlayer 播放时，把已有字幕或 Whisper 实时生成的原文字幕交给本机 Ollama 模型翻译成中文。模型文件不包含在本项目中。",
-            wraplength=710,
+            wraplength=750,
         ).pack(anchor="w", **pad)
 
         frame = ttk.LabelFrame(self, text="1. PotPlayer")
@@ -148,6 +180,7 @@ class App(tk.Tk):
         ttk.Entry(row, textvariable=self.pot_var).pack(side="left", fill="x", expand=True)
         ttk.Button(row, text="浏览", command=self.browse_potplayer).pack(side="left", padx=(8, 0))
         ttk.Button(row, text="自动检测", command=self.detect_potplayer_now).pack(side="left", padx=(8, 0))
+        ttk.Button(row, text="打开 PotPlayer", command=self.open_potplayer).pack(side="left", padx=(8, 0))
 
         frame2 = ttk.LabelFrame(self, text="2. 本机 Ollama 模型")
         frame2.pack(fill="x", **pad)
@@ -159,20 +192,24 @@ class App(tk.Tk):
         ttk.Button(row2, text="启动 Ollama", command=self.start_ollama).pack(side="left", padx=(8, 0))
         ttk.Button(row2, text="测试翻译", command=self.test_translation_async).pack(side="left", padx=(8, 0))
 
-        frame3 = ttk.LabelFrame(self, text="3. 安装")
+        frame3 = ttk.LabelFrame(self, text="3. 安装与检查")
         frame3.pack(fill="x", **pad)
-        ttk.Button(frame3, text="一键安装 PotPlayer 翻译插件", command=self.install_plugin, width=32).pack(anchor="w", padx=10, pady=10)
+        row3 = ttk.Frame(frame3)
+        row3.pack(fill="x", padx=10, pady=10)
+        ttk.Button(row3, text="一键安装翻译插件", command=self.install_plugin, width=25).pack(side="left")
+        ttk.Button(row3, text="一键检查环境", command=self.run_diagnostics_async, width=20).pack(side="left", padx=(8, 0))
 
         guide = (
             "安装后：\n"
             "① 完全退出并重新打开 PotPlayer。\n"
-            "② 有字幕的视频：开启“字幕 → 实时字幕翻译”，选择“本地AI实时翻译（中译）”。\n"
-            "③ 没字幕的视频：先在 PotPlayer 开启 Whisper/语音识别生成字幕，再开启上面的实时翻译。\n"
-            "④ 目标语言选 zh-CN。首次播放前建议点一次“测试翻译”给模型预热。"
+            "② 有字幕的视频：开启“字幕 → 实时字幕翻译”，选择“本地AI实时翻译（精准中文）”。\n"
+            "③ 没字幕的视频：先在 PotPlayer 开启 Whisper/语音识别生成原文字幕，再开启实时翻译。\n"
+            "④ 目标语言选 zh-CN。首次播放前建议先点“测试翻译”预热模型。\n"
+            "⑤ 重装插件时不会直接覆盖旧文件：配置器会先在原目录创建带时间戳的 backup 备份。"
         )
-        ttk.Label(self, text=guide, justify="left", wraplength=710).pack(anchor="w", **pad)
+        ttk.Label(self, text=guide, justify="left", wraplength=750).pack(anchor="w", **pad)
 
-        self.log = tk.Text(self, height=9, wrap="word")
+        self.log = tk.Text(self, height=11, wrap="word")
         self.log.pack(fill="both", expand=True, **pad)
         ttk.Label(self, textvariable=self.status_var).pack(anchor="w", padx=12, pady=(0, 10))
 
@@ -203,6 +240,17 @@ class App(tk.Tk):
         )
         if selected:
             self.pot_var.set(selected)
+
+    def open_potplayer(self) -> None:
+        exe = Path(self.pot_var.get().strip())
+        if not exe.is_file():
+            messagebox.showerror("PotPlayer 路径错误", "请先选择有效的 PotPlayer 主程序。")
+            return
+        try:
+            subprocess.Popen([str(exe)], cwd=str(exe.parent))
+            self.set_status("已启动 PotPlayer。")
+        except Exception as exc:
+            messagebox.showerror("启动失败", str(exc))
 
     def refresh_models_async(self) -> None:
         threading.Thread(target=self._refresh_models_worker, daemon=True).start()
@@ -242,31 +290,76 @@ class App(tk.Tk):
             messagebox.showerror("启动失败", str(exc))
 
     def test_translation_async(self) -> None:
-        threading.Thread(target=self._test_translation_worker, daemon=True).start()
-
-    def _test_translation_worker(self) -> None:
         model = self.model_var.get().strip()
+        threading.Thread(target=self._test_translation_worker, args=(model,), daemon=True).start()
+
+    def _test_translation_worker(self, model: str) -> None:
         if not model:
             self.after(0, lambda: self.set_status("请先选择模型。"))
             return
-        payload = {
-            "model": model,
-            "messages": [
-                {"role": "system", "content": "你是字幕翻译器，只输出简体中文译文。"},
-                {"role": "user", "content": "翻译：今日は来てくれてありがとう。"},
-            ],
-            "stream": False,
-            "keep_alive": "15m",
-            "options": {"temperature": 0.1, "num_predict": 64},
-        }
         try:
-            result = ollama_json("/api/chat", payload=payload, timeout=60)
-            text = str(result.get("message", {}).get("content", "")).strip()
+            text = sample_translation(model)
             if not text:
                 raise RuntimeError("模型返回为空")
             self.after(0, lambda: self.set_status(f"模型测试成功：{text}"))
         except Exception as exc:
             self.after(0, lambda: self.set_status(f"模型测试失败：{exc}"))
+
+    def run_diagnostics_async(self) -> None:
+        pot_text = self.pot_var.get().strip()
+        model = self.model_var.get().strip()
+        self.set_status("开始环境检查……")
+        threading.Thread(target=self._diagnostics_worker, args=(pot_text, model), daemon=True).start()
+
+    def _diagnostics_worker(self, pot_text: str, model: str) -> None:
+        lines: list[str] = []
+        ok = True
+
+        pot = Path(pot_text) if pot_text else Path()
+        if pot_text and pot.is_file():
+            lines.append(f"[通过] PotPlayer：{pot}")
+            dest = plugin_destination(pot)
+            if dest.is_file():
+                lines.append(f"[通过] 翻译插件已安装：{dest}")
+            else:
+                ok = False
+                lines.append("[未通过] 翻译插件尚未安装。")
+        else:
+            ok = False
+            lines.append("[未通过] PotPlayer 主程序路径无效。")
+
+        try:
+            models = get_ollama_models()
+            lines.append(f"[通过] Ollama 本地服务正常，共 {len(models)} 个模型。")
+            if not model:
+                ok = False
+                lines.append("[未通过] 尚未选择翻译模型。")
+            elif model not in models:
+                ok = False
+                lines.append(f"[未通过] Ollama 中没有找到模型：{model}")
+            else:
+                lines.append(f"[通过] 模型存在：{model}")
+                try:
+                    translated = sample_translation(model, timeout=90)
+                    if translated:
+                        lines.append(f"[通过] 实际翻译调用成功：{translated}")
+                    else:
+                        ok = False
+                        lines.append("[未通过] 模型调用成功但返回为空。")
+                except Exception as exc:
+                    ok = False
+                    lines.append(f"[未通过] 模型实际翻译失败：{exc}")
+        except Exception as exc:
+            ok = False
+            lines.append(f"[未通过] Ollama 无法连接：{exc}")
+
+        summary = "环境检查全部通过。下一步可进入 PotPlayer 实机测试。" if ok else "环境检查未全部通过，请先处理上面的未通过项。"
+
+        def apply() -> None:
+            self.append_log("\n".join(lines))
+            self.set_status(summary)
+
+        self.after(0, apply)
 
     def install_plugin(self) -> None:
         exe = Path(self.pot_var.get().strip())
@@ -284,10 +377,10 @@ class App(tk.Tk):
             messagebox.showerror("插件文件缺失", f"找不到：{source}")
             return
 
-        dest_dir = exe.parent / "Extension" / "Subtitle" / "Translate"
-        dest = dest_dir / PLUGIN_NAME
+        dest = plugin_destination(exe)
         try:
-            dest_dir.mkdir(parents=True, exist_ok=True)
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            backup = backup_existing_file(dest)
             content = source.read_text(encoding="utf-8")
             content = content.replace("__DEFAULT_MODEL__", model)
             dest.write_text(content, encoding="utf-8-sig")
@@ -301,6 +394,8 @@ class App(tk.Tk):
             messagebox.showerror("安装失败", str(exc))
             return
 
+        if backup:
+            self.append_log(f"已备份旧插件：{backup}")
         self.set_status(f"安装完成：{dest}\n默认模型：{model}")
         messagebox.showinfo("安装完成", "插件已安装。请完全退出并重新打开 PotPlayer，然后启用实时字幕翻译。")
 
