@@ -135,7 +135,11 @@ def play(platform, room_id):
         if selected < 0:
             return
     stream = streams[selected]
-    resolve_url(stream["url"], stream.get("headers") or {})
+    resolve_url(
+        stream["url"],
+        stream.get("headers") or {},
+        mime=stream.get("mime") or "",
+    )
 
 
 def favorites():

@@ -147,8 +147,15 @@ def _b64_decode(value):
     return base64.b64decode(value).decode("utf-8", errors="replace")
 
 
-def _build_url(stream_info, bitrate):
-    anticode = html.unescape(str(stream_info.get("sFlvAntiCode") or ""))
+def _protocol_fields(protocol):
+    if protocol == "hls":
+        return "sHlsAntiCode", "sHlsUrl", "sHlsUrlSuffix", "application/vnd.apple.mpegurl"
+    return "sFlvAntiCode", "sFlvUrl", "sFlvUrlSuffix", "video/x-flv"
+
+
+def _build_url(stream_info, bitrate, protocol="flv"):
+    anti_key, url_key, suffix_key, mime = _protocol_fields(protocol)
+    anticode = html.unescape(str(stream_info.get(anti_key) or ""))
     qs = dict(parse_qsl(anticode, keep_blank_values=True))
     fm = qs.get("fm") or ""
     ws_time = qs.get("wsTime") or ""
@@ -182,44 +189,87 @@ def _build_url(stream_info, bitrate):
         "sv": 2401090219,
         "codec": 264,
     }
-    base = str(stream_info.get("sFlvUrl") or "")
+
+    base = str(stream_info.get(url_key) or "")
+    if not base:
+        raise RuntimeError("虎牙%s线路为空" % protocol.upper())
     if base.startswith("http://"):
         base = "https://" + base[len("http://"):]
     elif not base.startswith("https://"):
         base = "https://" + base.lstrip("/")
-    suffix = str(stream_info.get("sFlvUrlSuffix") or "flv")
-    return "%s/%s.%s?%s" % (base.rstrip("/"), stream_name, suffix, urlencode(params))
+
+    default_suffix = "m3u8" if protocol == "hls" else "flv"
+    suffix = str(stream_info.get(suffix_key) or default_suffix)
+    url = "%s/%s.%s?%s" % (base.rstrip("/"), stream_name, suffix, urlencode(params))
+    return url, mime
+
+
+def _ordered_lines(lines):
+    def key(item):
+        cdn = str(item.get("sCdnType") or "").lower()
+        # AL 线路历史上更容易出现 403，放到最后。
+        al_penalty = 1 if cdn == "al" or "al." in str(item.get("sFlvUrl") or "").lower() else 0
+        try:
+            priority = int(item.get("iWebPriorityRate") or 0)
+        except Exception:
+            priority = 0
+        return (al_penalty, -priority)
+
+    return sorted(lines, key=key)
 
 
 def resolve_streams(room_id):
-    page = get_text(BASE + "/" + quote(str(room_id)), headers={"Referer": BASE + "/", "User-Agent": DEFAULT_UA})
+    # 每次点击播放都重新抓房间页并重新生成短时鉴权地址，不复用旧播放 URL。
+    page = get_text(
+        BASE + "/" + quote(str(room_id)),
+        headers={"Referer": BASE + "/", "User-Agent": DEFAULT_UA},
+    )
     stream = _extract_stream_data(page)
     data = (stream.get("data") or [{}])[0]
-    lines = data.get("gameStreamInfoList") or []
+    lines = _ordered_lines(data.get("gameStreamInfoList") or [])
     if not lines:
         raise RuntimeError("直播未开播或未获取到虎牙播放线路")
-    lines = sorted(lines, key=lambda x: 1 if str(x.get("sCdnType") or "").lower() == "al" else 0)
-    line = lines[0]
 
     rates = stream.get("vMultiStreamInfo") or [{"iBitRate": 0, "sDisplayName": "原画"}]
     seen = set()
     result = []
+
     for rate in rates:
         bitrate = int(rate.get("iBitRate") or 0)
         if bitrate in seen:
             continue
         seen.add(bitrate)
         label = str(rate.get("sDisplayName") or ("原画" if bitrate == 0 else "%sk" % bitrate))
-        try:
-            url = _build_url(line, bitrate)
-        except Exception:
-            continue
-        result.append({
-            "label": label,
-            "bitrate": bitrate,
-            "url": url,
-            "headers": {"Referer": BASE + "/", "Origin": BASE, "User-Agent": DEFAULT_UA},
-        })
+
+        chosen = None
+        # Kodi 对 HLS 的持续直播兼容通常比长连接 FLV 更稳，因此 HLS 优先。
+        # 如果某个房间/CDN 没有 HLS 参数，再自动回退 FLV。
+        for protocol in ("hls", "flv"):
+            for line in lines:
+                try:
+                    url, mime = _build_url(line, bitrate, protocol=protocol)
+                    chosen = {
+                        "label": label,
+                        "bitrate": bitrate,
+                        "url": url,
+                        "mime": mime,
+                        "protocol": protocol,
+                        "cdn": str(line.get("sCdnType") or ""),
+                        "headers": {
+                            "Referer": BASE + "/",
+                            "Origin": BASE,
+                            "User-Agent": DEFAULT_UA,
+                        },
+                    }
+                    break
+                except Exception:
+                    continue
+            if chosen:
+                break
+
+        if chosen:
+            result.append(chosen)
+
     result.sort(key=lambda x: (x["bitrate"] == 0, x["bitrate"]), reverse=True)
     if not result:
         raise RuntimeError("虎牙播放地址生成失败")

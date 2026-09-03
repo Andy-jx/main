@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import sys
-from urllib.parse import parse_qsl, urlencode
+from urllib.parse import parse_qsl, urlencode, urlsplit
 
 import xbmcgui
 import xbmcplugin
@@ -106,11 +106,44 @@ def add_room(item):
     xbmcplugin.addDirectoryItem(HANDLE, play_url, li, False)
 
 
-def resolve_url(url, headers=None):
+def _mime_for_url(url):
+    try:
+        path = urlsplit(url).path.lower()
+    except Exception:
+        path = str(url).lower()
+    if path.endswith(".m3u8"):
+        return "application/vnd.apple.mpegurl"
+    if path.endswith(".flv"):
+        return "video/x-flv"
+    if path.endswith(".mp4"):
+        return "video/mp4"
+    return ""
+
+
+def resolve_url(url, headers=None, mime=""):
+    raw_url = str(url or "")
+    final_url = raw_url
     if headers:
-        url = url + "|" + urlencode(headers)
-    li = xbmcgui.ListItem(path=url)
+        final_url = raw_url + "|" + urlencode(headers)
+
+    li = xbmcgui.ListItem(path=final_url)
     li.setProperty("IsPlayable", "true")
+
+    # 直播地址已经由插件明确解析完成，不让 Kodi 再做内容探测。
+    # 某些直播 CDN 对同一个短时鉴权 URL 的重复打开很敏感，
+    # ContentLookup 可能造成额外连接，从而表现为“播几秒后退出”。
+    try:
+        li.setContentLookup(False)
+    except Exception:
+        pass
+
+    resolved_mime = mime or _mime_for_url(raw_url)
+    if resolved_mime:
+        try:
+            li.setMimeType(resolved_mime)
+        except Exception:
+            pass
+
     xbmcplugin.setResolvedUrl(HANDLE, True, li)
 
 
