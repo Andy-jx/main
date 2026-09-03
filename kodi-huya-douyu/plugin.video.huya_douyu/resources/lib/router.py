@@ -9,6 +9,12 @@ import xbmcaddon
 from common import add_folder, add_room, choose, finish, get_params, input_text, notify, plugin_url, resolve_url
 from storage import add_favorite, load_favorites, remove_favorite
 
+PLATFORM_NAMES = {
+    "huya": "虎牙",
+    "douyu": "斗鱼",
+    "yy": "YY",
+}
+
 
 def _service(platform):
     if platform == "huya":
@@ -17,16 +23,20 @@ def _service(platform):
     if platform == "douyu":
         import douyu
         return douyu
+    if platform == "yy":
+        import yy
+        return yy
     raise RuntimeError("未知平台")
 
 
 def _platform_name(platform):
-    return "虎牙" if platform == "huya" else "斗鱼"
+    return PLATFORM_NAMES.get(platform, platform or "直播")
 
 
 def home():
     add_folder("虎牙直播", action="platform", platform="huya")
     add_folder("斗鱼直播", action="platform", platform="douyu")
+    add_folder("YY直播", action="platform", platform="yy")
     add_folder("我的收藏", action="favorites")
     add_folder("插件设置", action="settings")
     finish()
@@ -96,6 +106,12 @@ def _parse_room(platform, value):
         return ""
     if platform == "douyu":
         m = re.search(r"douyu\.com/(?:topic/)?(\d+)", text)
+        if m:
+            return m.group(1)
+        m = re.search(r"\d+", text)
+        return m.group(0) if m else ""
+    if platform == "yy":
+        m = re.search(r"yy\.com/(\d+)", text)
         if m:
             return m.group(1)
         m = re.search(r"\d+", text)
