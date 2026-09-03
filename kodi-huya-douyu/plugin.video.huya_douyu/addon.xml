@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="plugin.video.huya_douyu" name="虎牙斗鱼直播" version="0.1.0" provider-name="Andy-jx">
+<addon id="plugin.video.huya_douyu" name="虎牙斗鱼直播" version="0.1.1" provider-name="Andy-jx">
   <requires>
     <import addon="xbmc.python" version="3.0.0"/>
   </requires>
@@ -12,5 +12,6 @@
     <platform>all</platform>
     <license>MIT</license>
     <source>https://github.com/Andy-jx/main</source>
+    <news lang="zh_CN">0.1.1：修复部分直播起播几秒后退出的问题；虎牙优先使用 HLS、FLV 自动兜底，并关闭 Kodi 对已解析直播流的二次内容探测。</news>
   </extension>
 </addon>
