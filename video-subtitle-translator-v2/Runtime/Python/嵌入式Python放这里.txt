@@ -1,0 +1,7 @@
+可选：如果最终要做成“客户解压直接用”的绿色包，可以把已经装好 requirements.txt 依赖的嵌入式 Python 放在这里。
+
+启动脚本优先寻找：
+Runtime\Python\python.exe
+Runtime\Python\pythonw.exe
+
+如果这里没有，程序会尝试使用系统 Python。
