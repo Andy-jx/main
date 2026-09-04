@@ -1,0 +1,4 @@
+把 ffmpeg.exe 放到本目录：
+Runtime\ffmpeg\bin\ffmpeg.exe
+
+如果系统 PATH 已经能直接运行 ffmpeg，也可以不放。
