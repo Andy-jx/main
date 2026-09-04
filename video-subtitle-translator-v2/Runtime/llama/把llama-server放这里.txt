@@ -1,0 +1,6 @@
+把 Windows 版 llama.cpp 的 llama-server.exe 以及它需要的 DLL 一起放到这个目录。
+
+至少需要：
+Runtime\llama\llama-server.exe
+
+如果该版本还有 ggml-*.dll、cudart*.dll 等依赖，也全部放在同一目录。
