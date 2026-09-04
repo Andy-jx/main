@@ -1,0 +1,9 @@
+把 Faster-Whisper / CTranslate2 格式的 Whisper large-v3 模型完整文件夹内容放到这里。
+
+正确示例：
+Models\Whisper\large-v3\model.bin
+Models\Whisper\large-v3\config.json
+Models\Whisper\large-v3\tokenizer.json
+...
+
+程序只读取本地文件，不会自动下载模型。
