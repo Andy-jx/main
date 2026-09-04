@@ -33,6 +33,12 @@ def test_plugin_has_context_and_duplicate_cache():
     assert "PushCache" in text
 
 
+def test_plugin_does_not_use_angelscript_reserved_out_identifier():
+    text = (ROOT / "plugin" / module.PLUGIN_NAME).read_text(encoding="utf-8")
+    assert "string out =" not in text
+    assert "return out;" not in text
+
+
 def test_plugin_destination_is_inside_potplayer_tree(tmp_path):
     exe = tmp_path / "PotPlayerMini64.exe"
     exe.write_bytes(b"")
