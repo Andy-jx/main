@@ -8,7 +8,7 @@ string DEFAULT_MODEL_NAME = "__DEFAULT_MODEL__";
 string API_BASE = "http://127.0.0.1:11434";
 string API_CHAT = "http://127.0.0.1:11434/api/chat";
 string API_GENERATE = "http://127.0.0.1:11434/api/generate";
-string USER_AGENT = "PotPlayer-LocalAI-Translator/1.2";
+string USER_AGENT = "PotPlayer-LocalAI-Translator/1.2.1";
 int MAX_HISTORY = 6;
 int MAX_CACHE = 40;
 array<string> g_history;
@@ -23,7 +23,7 @@ string GetTitle() {
     return "{$CP936=本地AI实时翻译（精准中文）}{$CP0=Local AI Live Translate (Chinese)$}";
 }
 
-string GetVersion() { return "1.2.0"; }
+string GetVersion() { return "1.2.1"; }
 
 string GetDesc() {
     return "{$CP936=通过本机 Ollama 模型实时翻译字幕；支持 Qwen3/Qwen3.5 非思考模式、上下文和重复字幕缓存。}{$CP0=Local Ollama subtitle translation with context/cache.$}";
@@ -61,13 +61,13 @@ string JsonEscape(const string &in input) {
 }
 
 string CleanOutput(string text) {
-    string out = text.Trim();
-    int endThink = out.find("</think>");
-    if (endThink != -1) out = out.substr(uint(endThink + 8)).Trim();
-    if (out.length() >= 2 && out.substr(0, 1) == "\"" && out.substr(out.length() - 1, 1) == "\"") {
-        out = out.substr(1, out.length() - 2).Trim();
+    string cleaned = text.Trim();
+    int endThink = cleaned.find("</think>");
+    if (endThink != -1) cleaned = cleaned.substr(uint(endThink + 8)).Trim();
+    if (cleaned.length() >= 2 && cleaned.substr(0, 1) == "\"" && cleaned.substr(cleaned.length() - 1, 1) == "\"") {
+        cleaned = cleaned.substr(1, cleaned.length() - 2).Trim();
     }
-    return out;
+    return cleaned;
 }
 
 bool IsUsefulText(const string &in text) {
@@ -219,7 +219,6 @@ string Translate(string Text, string &in SrcLang, string &in DstLang) {
     string response = HostUrlGetString(API_CHAT, USER_AGENT, "Content-Type: application/json", chatBodyThinkOff);
     string translated = ParseChatResponse(response);
 
-    // Older Ollama builds may reject the 'think' field. Retry chat without it.
     if (translated.empty()) {
         string chatBodyCompat = "{"
             "\"model\":\"" + JsonEscape(model) + "\","
@@ -235,7 +234,6 @@ string Translate(string Text, string &in SrcLang, string &in DstLang) {
         translated = ParseChatResponse(response);
     }
 
-    // Final compatibility fallback: /api/generate with the full subtitle prompt.
     if (translated.empty()) {
         string fullPrompt = systemPrompt + "\n\n" + userPrompt + "\n只输出中文译文：";
         string genBody = "{"
@@ -257,7 +255,7 @@ string Translate(string Text, string &in SrcLang, string &in DstLang) {
 }
 
 void OnInitialize() {
-    HostPrintUTF8("[LocalAI] PotPlayer 本地实时翻译插件 1.2 已加载。\n");
+    HostPrintUTF8("[LocalAI] PotPlayer 本地实时翻译插件 1.2.1 已加载。\n");
 }
 
 void OnFinalize() {
