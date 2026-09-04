@@ -7,7 +7,8 @@
 string DEFAULT_MODEL_NAME = "__DEFAULT_MODEL__";
 string API_BASE = "http://127.0.0.1:11434";
 string API_CHAT = "http://127.0.0.1:11434/api/chat";
-string USER_AGENT = "PotPlayer-LocalAI-Translator/1.1";
+string API_GENERATE = "http://127.0.0.1:11434/api/generate";
+string USER_AGENT = "PotPlayer-LocalAI-Translator/1.2";
 int MAX_HISTORY = 6;
 int MAX_CACHE = 40;
 array<string> g_history;
@@ -22,10 +23,10 @@ string GetTitle() {
     return "{$CP936=本地AI实时翻译（精准中文）}{$CP0=Local AI Live Translate (Chinese)$}";
 }
 
-string GetVersion() { return "1.1.0"; }
+string GetVersion() { return "1.2.0"; }
 
 string GetDesc() {
-    return "{$CP936=通过本机 Ollama 模型实时翻译字幕；带上下文与重复字幕缓存，不上传视频或字幕。}{$CP0=Realtime subtitle translation via local Ollama with context and cache.$}";
+    return "{$CP936=通过本机 Ollama 模型实时翻译字幕；支持 Qwen3/Qwen3.5 非思考模式、上下文和重复字幕缓存。}{$CP0=Local Ollama subtitle translation with context/cache.$}";
 }
 
 string GetLoginTitle() {
@@ -61,16 +62,11 @@ string JsonEscape(const string &in input) {
 
 string CleanOutput(string text) {
     string out = text.Trim();
-
     int endThink = out.find("</think>");
-    if (endThink != -1) {
-        out = out.substr(uint(endThink + 8)).Trim();
-    }
-
+    if (endThink != -1) out = out.substr(uint(endThink + 8)).Trim();
     if (out.length() >= 2 && out.substr(0, 1) == "\"" && out.substr(out.length() - 1, 1) == "\"") {
         out = out.substr(1, out.length() - 2).Trim();
     }
-
     return out;
 }
 
@@ -86,14 +82,11 @@ array<string> GetOllamaModelNames() {
     HostIncTimeOut(5000);
     string resp = HostUrlGetString(API_BASE + "/api/tags", USER_AGENT, "Content-Type: application/json", "");
     if (resp.empty()) return result;
-
     JsonReader reader;
     JsonValue root;
     if (!reader.parse(resp, root)) return result;
-
     JsonValue models = root["models"];
     if (!models.isArray()) return result;
-
     for (uint i = 0; i < models.size(); i++) {
         if (models[i]["name"].isString()) result.insertLast(models[i]["name"].asString());
     }
@@ -103,16 +96,11 @@ array<string> GetOllamaModelNames() {
 string PickModel() {
     string saved = HostLoadString("localai_model", "").Trim();
     if (!saved.empty()) return saved;
-
     array<string> names = GetOllamaModelNames();
     if (names.size() == 0) return DEFAULT_MODEL_NAME;
-
+    for (uint i = 0; i < names.size(); i++) if (names[i] == DEFAULT_MODEL_NAME) return names[i];
     for (uint i = 0; i < names.size(); i++) {
-        if (names[i] == DEFAULT_MODEL_NAME) return names[i];
-    }
-    for (uint i = 0; i < names.size(); i++) {
-        string lower = names[i];
-        lower.MakeLower();
+        string lower = names[i]; lower.MakeLower();
         if (lower.find("qwen") != -1) return names[i];
     }
     return names[0];
@@ -121,84 +109,81 @@ string PickModel() {
 string ServerLogin(string User, string Pass) {
     string model = User.Trim();
     if (model.empty()) model = DEFAULT_MODEL_NAME;
-
     array<string> names = GetOllamaModelNames();
-    if (names.size() == 0) {
-        return "Ollama 未运行或 11434 端口不可访问。";
-    }
-
+    if (names.size() == 0) return "Ollama 未运行或 11434 端口不可访问。";
     bool found = false;
-    for (uint i = 0; i < names.size(); i++) {
-        if (names[i] == model) {
-            found = true;
-            break;
-        }
-    }
+    for (uint i = 0; i < names.size(); i++) if (names[i] == model) { found = true; break; }
     if (!found) return "未找到本地模型：" + model;
-
     HostSaveString("localai_model", model);
-    g_history.resize(0);
-    g_cache_src.resize(0);
-    g_cache_dst.resize(0);
+    g_history.resize(0); g_cache_src.resize(0); g_cache_dst.resize(0);
     return "200 ok";
 }
 
 void ServerLogout() {
     HostSaveString("localai_model", "");
-    g_history.resize(0);
-    g_cache_src.resize(0);
-    g_cache_dst.resize(0);
+    g_history.resize(0); g_cache_src.resize(0); g_cache_dst.resize(0);
 }
 
 string BuildContext() {
-    if (g_history.size() == 0) return "";
     string ctx = "";
-    for (uint i = 0; i < g_history.size(); i++) {
-        ctx += g_history[i] + "\n";
-    }
+    for (uint i = 0; i < g_history.size(); i++) ctx += g_history[i] + "\n";
     return ctx;
 }
 
 void PushHistory(const string &in src, const string &in dst) {
-    string pair = "原文：" + src + "\n译文：" + dst;
-    g_history.insertLast(pair);
+    g_history.insertLast("原文：" + src + "\n译文：" + dst);
     while (g_history.size() > uint(MAX_HISTORY)) g_history.removeAt(0);
 }
 
 string LookupCache(const string &in src) {
-    for (uint i = 0; i < g_cache_src.size(); i++) {
-        if (g_cache_src[i] == src) return g_cache_dst[i];
-    }
+    for (uint i = 0; i < g_cache_src.size(); i++) if (g_cache_src[i] == src) return g_cache_dst[i];
     return "";
 }
 
 void PushCache(const string &in src, const string &in dst) {
     if (src.empty() || dst.empty()) return;
-    g_cache_src.insertLast(src);
-    g_cache_dst.insertLast(dst);
+    g_cache_src.insertLast(src); g_cache_dst.insertLast(dst);
     while (g_cache_src.size() > uint(MAX_CACHE)) {
-        g_cache_src.removeAt(0);
-        g_cache_dst.removeAt(0);
+        g_cache_src.removeAt(0); g_cache_dst.removeAt(0);
     }
+}
+
+string ParseChatResponse(const string &in response) {
+    if (response.empty()) return "";
+    JsonReader reader; JsonValue root;
+    if (!reader.parse(response, root)) return "";
+    if (root["error"].isString()) {
+        HostPrintUTF8("[LocalAI] Ollama chat error: " + root["error"].asString() + "\n");
+        return "";
+    }
+    if (!root["message"]["content"].isString()) return "";
+    return CleanOutput(root["message"]["content"].asString());
+}
+
+string ParseGenerateResponse(const string &in response) {
+    if (response.empty()) return "";
+    JsonReader reader; JsonValue root;
+    if (!reader.parse(response, root)) return "";
+    if (root["error"].isString()) {
+        HostPrintUTF8("[LocalAI] Ollama generate error: " + root["error"].asString() + "\n");
+        return "";
+    }
+    if (!root["response"].isString()) return "";
+    return CleanOutput(root["response"].asString());
 }
 
 string Translate(string Text, string &in SrcLang, string &in DstLang) {
     if (!IsUsefulText(Text)) return "";
-
     string cleanText = Text.Trim();
     string cached = LookupCache(cleanText);
     if (!cached.empty()) {
-        SrcLang = "UTF8";
-        DstLang = "UTF8";
-        return cached;
+        SrcLang = "UTF8"; DstLang = "UTF8"; return cached;
     }
 
     string model = PickModel();
     if (model.empty()) return "";
-
     string target = DstLang;
     if (target.empty() || target == "Auto") target = "zh-CN";
-
     string source = SrcLang;
     if (source.empty() || source == "Auto") source = "auto";
 
@@ -215,47 +200,66 @@ string Translate(string Text, string &in SrcLang, string &in DstLang) {
 
     string context = BuildContext();
     string userPrompt = "源语言：" + source + "\n目标语言：" + target + "\n";
-    if (!context.empty()) {
-        userPrompt += "下面是前文，仅用于理解语气与指代，不要重复翻译：\n<context>\n" + context + "</context>\n";
-    }
+    if (!context.empty()) userPrompt += "下面是前文，仅用于理解语气与指代，不要重复翻译：\n<context>\n" + context + "</context>\n";
     userPrompt += "翻译当前字幕：\n<subtitle>\n" + cleanText + "\n</subtitle>";
 
-    string body = "{"
+    string chatBodyThinkOff = "{"
         "\"model\":\"" + JsonEscape(model) + "\","
         "\"messages\":["
             "{\"role\":\"system\",\"content\":\"" + JsonEscape(systemPrompt) + "\"},"
             "{\"role\":\"user\",\"content\":\"" + JsonEscape(userPrompt) + "\"}"
         "],"
         "\"stream\":false,"
+        "\"think\":false,"
         "\"keep_alive\":\"30m\","
-        "\"options\":{\"temperature\":0.1,\"top_p\":0.85,\"num_ctx\":4096,\"num_predict\":160}"
+        "\"options\":{\"temperature\":0.1,\"top_p\":0.85,\"num_ctx\":4096,\"num_predict\":256}"
     "}";
 
-    HostIncTimeOut(30000);
-    string response = HostUrlGetString(API_CHAT, USER_AGENT, "Content-Type: application/json", body);
-    if (response.empty()) return "";
+    HostIncTimeOut(60000);
+    string response = HostUrlGetString(API_CHAT, USER_AGENT, "Content-Type: application/json", chatBodyThinkOff);
+    string translated = ParseChatResponse(response);
 
-    JsonReader reader;
-    JsonValue root;
-    if (!reader.parse(response, root)) return "";
-    if (!root["message"]["content"].isString()) return "";
+    // Older Ollama builds may reject the 'think' field. Retry chat without it.
+    if (translated.empty()) {
+        string chatBodyCompat = "{"
+            "\"model\":\"" + JsonEscape(model) + "\","
+            "\"messages\":["
+                "{\"role\":\"system\",\"content\":\"" + JsonEscape(systemPrompt) + "\"},"
+                "{\"role\":\"user\",\"content\":\"" + JsonEscape(userPrompt) + "\"}"
+            "],"
+            "\"stream\":false,"
+            "\"keep_alive\":\"30m\","
+            "\"options\":{\"temperature\":0.1,\"top_p\":0.85,\"num_ctx\":4096,\"num_predict\":256}"
+        "}";
+        response = HostUrlGetString(API_CHAT, USER_AGENT, "Content-Type: application/json", chatBodyCompat);
+        translated = ParseChatResponse(response);
+    }
 
-    string translated = CleanOutput(root["message"]["content"].asString());
+    // Final compatibility fallback: /api/generate with the full subtitle prompt.
+    if (translated.empty()) {
+        string fullPrompt = systemPrompt + "\n\n" + userPrompt + "\n只输出中文译文：";
+        string genBody = "{"
+            "\"model\":\"" + JsonEscape(model) + "\","
+            "\"prompt\":\"" + JsonEscape(fullPrompt) + "\","
+            "\"stream\":false,"
+            "\"think\":false,"
+            "\"keep_alive\":\"30m\","
+            "\"options\":{\"temperature\":0.1,\"top_p\":0.85,\"num_ctx\":4096,\"num_predict\":256}"
+        "}";
+        response = HostUrlGetString(API_GENERATE, USER_AGENT, "Content-Type: application/json", genBody);
+        translated = ParseGenerateResponse(response);
+    }
+
     if (translated.empty()) return "";
-
-    PushCache(cleanText, translated);
-    PushHistory(cleanText, translated);
-    SrcLang = "UTF8";
-    DstLang = "UTF8";
+    PushCache(cleanText, translated); PushHistory(cleanText, translated);
+    SrcLang = "UTF8"; DstLang = "UTF8";
     return translated;
 }
 
 void OnInitialize() {
-    HostPrintUTF8("[LocalAI] PotPlayer 本地实时翻译插件 1.1 已加载。\n");
+    HostPrintUTF8("[LocalAI] PotPlayer 本地实时翻译插件 1.2 已加载。\n");
 }
 
 void OnFinalize() {
-    g_history.resize(0);
-    g_cache_src.resize(0);
-    g_cache_dst.resize(0);
+    g_history.resize(0); g_cache_src.resize(0); g_cache_dst.resize(0);
 }
