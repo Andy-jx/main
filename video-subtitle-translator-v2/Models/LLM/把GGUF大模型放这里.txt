@@ -1,0 +1,12 @@
+把本地翻译/精校大模型的 GGUF 文件放到这个目录即可。
+
+推荐目录：
+Models\LLM\Qwen-14B\model.gguf
+
+也支持分卷 GGUF，例如：
+model-00001-of-00003.gguf
+model-00002-of-00003.gguf
+model-00003-of-00003.gguf
+
+程序会自动寻找 .gguf；分卷模型会优先加载第 1 卷。
+模型不包含在仓库中。

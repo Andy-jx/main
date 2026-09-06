@@ -1,0 +1,42 @@
+name: video-subtitle-translator-v2-ci
+
+on:
+  push:
+    branches:
+      - tool/video-subtitle-translator-v2
+    paths:
+      - 'video-subtitle-translator-v2/**'
+      - '.github/workflows/video-subtitle-translator-v2-ci.yml'
+  pull_request:
+    paths:
+      - 'video-subtitle-translator-v2/**'
+
+jobs:
+  syntax-and-core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile Python sources
+        working-directory: video-subtitle-translator-v2
+        run: python -m py_compile subtitle_engine.py cli.py app.py
+      - name: Test SRT parser and writer
+        working-directory: video-subtitle-translator-v2
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import tempfile
+          from subtitle_engine import Cue, format_ts, parse_ts, read_srt, write_srt
+          assert parse_ts('01:02:03,456') == 3723456
+          assert format_ts(3723456) == '01:02:03,456'
+          with tempfile.TemporaryDirectory() as td:
+              p = Path(td) / 'a.srt'
+              write_srt([Cue(7, 1000, 2500, '测试字幕')], p)
+              rows = read_srt(p)
+              assert len(rows) == 1
+              assert rows[0].text == '测试字幕'
+              assert rows[0].start_ms == 1000
+          print('core test ok')
+          PY
