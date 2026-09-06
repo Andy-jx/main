@@ -1,0 +1,1 @@
+# 本工具仅使用 Python 标准库（tkinter / pathlib / re / collections），无需 pip 安装第三方依赖。
