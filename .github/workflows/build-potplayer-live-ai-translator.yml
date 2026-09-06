@@ -1,0 +1,60 @@
+name: Build PotPlayer Live AI Translator
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - tool/potplayer-live-ai-translator
+    paths:
+      - 'tools/potplayer-live-ai-translator/**'
+      - '.github/workflows/build-potplayer-live-ai-translator.yml'
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install build dependencies
+        run: python -m pip install --upgrade pip pyinstaller pytest
+
+      - name: Run self-checks
+        working-directory: tools/potplayer-live-ai-translator
+        run: |
+          python -m py_compile app/configurator.py
+          python -m pytest -q
+
+      - name: Build executable
+        working-directory: tools/potplayer-live-ai-translator
+        shell: cmd
+        run: >-
+          python -m PyInstaller --noconfirm --clean --onefile --windowed
+          --name "PotPlayer本地AI实时翻译配置器"
+          --add-data "plugin;plugin"
+          app\configurator.py
+
+      - name: Build customer ZIP
+        working-directory: tools/potplayer-live-ai-translator
+        shell: pwsh
+        run: |
+          $pkg = 'release/PotPlayer-LocalAI-Live-Translator'
+          $zip = 'release/PotPlayer-LocalAI-Live-Translator-Windows.zip'
+          New-Item -ItemType Directory -Force -Path $pkg | Out-Null
+          Copy-Item 'dist/PotPlayer本地AI实时翻译配置器.exe' $pkg
+          Copy-Item 'README.md' $pkg
+          Copy-Item 'docs/使用说明.md' $pkg
+          Copy-Item 'docs/实机验收清单.md' $pkg
+          Compress-Archive -Path "$pkg/*" -DestinationPath $zip -Force
+
+      - name: Upload Windows package
+        uses: actions/upload-artifact@v4
+        with:
+          name: PotPlayer-LocalAI-Live-Translator-Windows
+          path: tools/potplayer-live-ai-translator/release/PotPlayer-LocalAI-Live-Translator-Windows.zip
+          if-no-files-found: error
