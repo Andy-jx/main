@@ -1,0 +1,31 @@
+name: Factory sourcing build
+
+on:
+  push:
+    branches:
+      - site/factory-sourcing
+    paths:
+      - 'factory-sourcing/**'
+      - '.github/workflows/factory-sourcing-build.yml'
+  pull_request:
+    paths:
+      - 'factory-sourcing/**'
+      - '.github/workflows/factory-sourcing-build.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: factory-sourcing
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: factory-sourcing/package.json
+      - name: Install dependencies
+        run: npm install
+      - name: Build Next.js site
+        run: npm run build
