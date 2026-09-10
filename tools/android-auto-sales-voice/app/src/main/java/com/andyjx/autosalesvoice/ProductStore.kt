@@ -4,32 +4,30 @@ import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
 
-data class Product(
+data class PlaylistProfile(
     val name: String,
-    val scripts: List<String>,
-    val audioUris: List<String> = emptyList()
+    val audioUris: List<String>
 )
 
 object ProductStore {
-    fun load(context: Context): MutableList<Product> {
-        val raw = context.getSharedPreferences("sales_voice", Context.MODE_PRIVATE)
-            .getString("products_json", null)
+    private const val PREFS = "real_audio_sales"
+    private const val KEY = "profiles_json"
+
+    fun load(context: Context): MutableList<PlaylistProfile> {
+        val raw = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY, null)
         if (raw.isNullOrBlank()) return mutableListOf(sample())
         return try {
-            val out = mutableListOf<Product>()
+            val out = mutableListOf<PlaylistProfile>()
             val arr = JSONArray(raw)
             for (i in 0 until arr.length()) {
                 val obj = arr.getJSONObject(i)
-                val scriptsJson = obj.getJSONArray("scripts")
-                val scripts = mutableListOf<String>()
-                for (j in 0 until scriptsJson.length()) scripts += scriptsJson.getString(j)
-
-                val audioUris = mutableListOf<String>()
-                val audioJson = obj.optJSONArray("audioUris")
-                if (audioJson != null) {
-                    for (j in 0 until audioJson.length()) audioUris += audioJson.optString(j)
+                val audio = mutableListOf<String>()
+                val audioJson = obj.optJSONArray("audioUris") ?: JSONArray()
+                for (j in 0 until audioJson.length()) {
+                    val uri = audioJson.optString(j)
+                    if (uri.isNotBlank()) audio += uri
                 }
-                out += Product(obj.getString("name"), scripts, audioUris)
+                out += PlaylistProfile(obj.optString("name", "直播方案 ${i + 1}"), audio)
             }
             if (out.isEmpty()) mutableListOf(sample()) else out
         } catch (_: Exception) {
@@ -37,30 +35,16 @@ object ProductStore {
         }
     }
 
-    fun save(context: Context, products: List<Product>) {
+    fun save(context: Context, profiles: List<PlaylistProfile>) {
         val arr = JSONArray()
-        products.forEach { p ->
-            val obj = JSONObject().put("name", p.name)
-            val scripts = JSONArray()
-            p.scripts.forEach { scripts.put(it) }
-            obj.put("scripts", scripts)
+        profiles.forEach { p ->
             val audio = JSONArray()
             p.audioUris.forEach { audio.put(it) }
-            obj.put("audioUris", audio)
-            arr.put(obj)
+            arr.put(JSONObject().put("name", p.name).put("audioUris", audio))
         }
-        context.getSharedPreferences("sales_voice", Context.MODE_PRIVATE)
-            .edit().putString("products_json", arr.toString()).apply()
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit().putString(KEY, arr.toString()).apply()
     }
 
-    fun sample() = Product(
-        "溜溜凳示例",
-        listOf(
-            "现在镜头里这款是带轮靠背溜溜凳，整体低矮小巧，坐着移动比较方便。",
-            "大家现在看到的是经典黑款，可以重点看看靠背、坐垫和轮子的细节。",
-            "底部带四只万向轮，梳妆台、工作台、厨房或者门店里都能灵活移动。",
-            "这款还有墨绿色、暖橙色和复古棕，可以按照使用环境选择。",
-            "购买前建议先确认使用位置的高度和空间，再对照商品详情里的尺寸。"
-        )
-    )
+    fun sample() = PlaylistProfile("溜溜凳直播", emptyList())
 }
