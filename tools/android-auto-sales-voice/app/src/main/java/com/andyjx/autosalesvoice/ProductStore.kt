@@ -4,7 +4,11 @@ import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
 
-data class Product(val name: String, val scripts: List<String>)
+data class Product(
+    val name: String,
+    val scripts: List<String>,
+    val audioUris: List<String> = emptyList()
+)
 
 object ProductStore {
     fun load(context: Context): MutableList<Product> {
@@ -19,7 +23,13 @@ object ProductStore {
                 val scriptsJson = obj.getJSONArray("scripts")
                 val scripts = mutableListOf<String>()
                 for (j in 0 until scriptsJson.length()) scripts += scriptsJson.getString(j)
-                out += Product(obj.getString("name"), scripts)
+
+                val audioUris = mutableListOf<String>()
+                val audioJson = obj.optJSONArray("audioUris")
+                if (audioJson != null) {
+                    for (j in 0 until audioJson.length()) audioUris += audioJson.optString(j)
+                }
+                out += Product(obj.getString("name"), scripts, audioUris)
             }
             if (out.isEmpty()) mutableListOf(sample()) else out
         } catch (_: Exception) {
@@ -34,6 +44,9 @@ object ProductStore {
             val scripts = JSONArray()
             p.scripts.forEach { scripts.put(it) }
             obj.put("scripts", scripts)
+            val audio = JSONArray()
+            p.audioUris.forEach { audio.put(it) }
+            obj.put("audioUris", audio)
             arr.put(obj)
         }
         context.getSharedPreferences("sales_voice", Context.MODE_PRIVATE)
