@@ -1,0 +1,1315 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>生日直播 独立版01</title>
+  <style>
+    :root {
+      --bg: #1a1a1a;
+      --panel: #242424;
+      --text: #eaf25b;
+      --pinyin: #d8d66c;
+      --score: #f4f4f6;
+      --high: #e33a2e;
+      --muted: #8e8e8e;
+      --accent: #18b987;
+      --title-size: 44px;
+      --item-size: 28px;
+      --score-size: 28px;
+      --gap: 18px;
+      --score-col: 116px;
+      --col-gap: 120px;
+      --font-main: "SimSun", "STSong", "Microsoft YaHei", serif;
+      --font-ui: "Microsoft YaHei", Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-ui);
+    }
+
+    body.panel-hidden .control-panel { transform: translateX(calc(100% + 18px)); }
+    body.panel-hidden .stage { padding-right: 48px; }
+
+    .app {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      padding: 22px;
+      background: var(--bg);
+    }
+
+    .stage {
+      position: relative;
+      min-width: 0;
+      height: 100%;
+      padding: 10px 380px 22px 28px;
+      background: var(--bg);
+      transition: padding-right 0.2s ease;
+    }
+
+    .title-wrap {
+      text-align: center;
+      margin-bottom: 8px;
+      user-select: none;
+      transform: translate(var(--title-x, 0px), var(--title-y, 0px));
+    }
+
+    .title {
+      color: var(--high);
+      font-family: var(--font-main);
+      font-weight: 800;
+      font-size: var(--title-size);
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin-top: 2px;
+      color: var(--pinyin);
+      font-weight: 700;
+      font-size: 15px;
+      opacity: 0.9;
+    }
+
+    .input-catcher {
+      position: absolute;
+      left: 28px;
+      width: max(180px, calc(100% - 28px - 380px - var(--score-col) - var(--col-gap)));
+      top: 72px;
+      height: 24px;
+      transform: none;
+      border: 2px solid var(--accent);
+      border-radius: 4px;
+      outline: 0;
+      background: transparent;
+      color: var(--text);
+      caret-color: var(--text);
+      text-align: center;
+      font-size: 14px;
+      font-weight: 800;
+      opacity: 0.9;
+    }
+
+    body.hide-input .input-catcher {
+      border-color: transparent;
+      opacity: 0;
+    }
+
+    .records {
+      position: absolute;
+      left: 28px;
+      right: 380px;
+      top: 110px;
+      bottom: 22px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: var(--gap);
+    }
+
+    .record {
+      display: grid;
+      grid-template-columns: minmax(180px, 1fr) var(--score-col);
+      align-items: center;
+      column-gap: var(--col-gap);
+      min-height: calc(var(--item-size) + 14px);
+      animation: pop-in 160ms ease-out;
+    }
+
+    @keyframes pop-in {
+      from { transform: translateY(-8px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .birthday {
+      min-width: 0;
+      text-align: center;
+      font-family: var(--font-main);
+      font-weight: 800;
+    }
+
+    .py {
+      color: var(--pinyin);
+      font-family: "Times New Roman", serif;
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .cn {
+      color: var(--text);
+      font-size: var(--item-size);
+      line-height: 1.02;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .score {
+      text-align: center;
+      color: var(--score);
+      font-family: var(--font-main);
+      font-size: var(--score-size);
+      font-weight: 900;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .record.high .score { color: var(--high); }
+    .record.top .score { text-shadow: 0 0 14px color-mix(in srgb, var(--high), transparent 40%); }
+
+    .stats {
+      position: absolute;
+      left: 28px;
+      bottom: 8px;
+      right: 380px;
+      display: flex;
+      gap: 18px;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 13px;
+      opacity: 0.75;
+      user-select: none;
+    }
+
+    .control-panel {
+      position: fixed;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 340px;
+      z-index: 50;
+      height: 100%;
+      overflow: auto;
+      border-left: 1px solid rgba(255,255,255,0.08);
+      background: var(--panel);
+      padding: 16px;
+      color: #fff;
+      font-family: var(--font-ui);
+      transition: transform 0.2s ease;
+      box-shadow: -10px 0 24px rgba(0,0,0,0.28);
+    }
+
+    .panel-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+      font-weight: 800;
+      font-size: 18px;
+    }
+
+    .section {
+      border-top: 1px solid rgba(255,255,255,0.1);
+      padding-top: 12px;
+      margin-top: 12px;
+    }
+
+    label {
+      display: grid;
+      grid-template-columns: 92px 1fr;
+      align-items: center;
+      gap: 8px;
+      margin: 8px 0;
+      color: #d8d8d8;
+      font-size: 13px;
+    }
+
+    input, select, button {
+      width: 100%;
+      min-height: 32px;
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 6px;
+      background: #151515;
+      color: #fff;
+      padding: 6px 8px;
+      font: inherit;
+    }
+
+    input[type="color"] { padding: 2px; }
+    input[type="checkbox"] { width: 18px; min-height: 18px; justify-self: start; }
+
+    button {
+      cursor: pointer;
+      background: #313131;
+      font-weight: 700;
+    }
+
+    button:hover { border-color: var(--accent); }
+
+    .row2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .hint {
+      color: #aaa;
+      font-size: 12px;
+      line-height: 1.5;
+      margin-top: 8px;
+    }
+
+    .why {
+      margin-top: 2px;
+      color: var(--muted);
+      font-family: var(--font-ui);
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.15;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .logic-readout {
+      color: #ddd;
+      font-size: 13px;
+      line-height: 1.55;
+      margin-top: 8px;
+    }
+
+    .zodiac-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .zodiac-pill {
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 6px;
+      padding: 5px 0;
+      text-align: center;
+      color: #888;
+      font-weight: 700;
+      background: #151515;
+    }
+
+    .zodiac-pill.on {
+      color: var(--text);
+      border-color: var(--accent);
+    }
+
+    .toggle-panel {
+      position: fixed;
+      right: 14px;
+      bottom: 14px;
+      width: auto;
+      min-height: 28px;
+      padding: 4px 10px;
+      z-index: 20;
+      opacity: 0.7;
+    }
+
+    @media (max-width: 900px) {
+      .stage { padding-right: 48px; }
+      .records { right: 48px; }
+      .input-catcher { width: min(320px, calc(100% - 96px)); }
+      .stats { right: 48px; }
+      .control-panel { width: min(340px, 88vw); }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="stage" id="stage">
+      <div class="title-wrap">
+        <div class="title" id="titleText">生日热度榜</div>
+        <div class="subtitle" id="subtitleText">输入生日，点亮直播间热度</div>
+      </div>
+
+      <input id="birthdayInput" class="input-catcher" autocomplete="off" inputmode="text" aria-label="输入生日" />
+      <div class="records" id="records"></div>
+      <div class="stats" id="stats"></div>
+    </section>
+
+    <aside class="control-panel" id="controlPanel">
+      <div class="panel-title">
+        <span>功能栏 · 独立01</span>
+        <button id="hidePanelBtn" type="button">隐藏</button>
+      </div>
+
+      <div class="section">
+        <label>标题<input id="cfgTitle" type="text" /></label>
+        <label>副标题<input id="cfgSubtitle" type="text" /></label>
+        <label>数值后缀<input id="cfgSuffix" type="text" /></label>
+        <label>专场生肖<select id="cfgZodiac"></select></label>
+      </div>
+
+      <div class="section">
+        <label>底色<input id="cfgBg" type="color" /></label>
+        <label>生日色<input id="cfgText" type="color" /></label>
+        <label>拼音色<input id="cfgPinyin" type="color" /></label>
+        <label>普通分<input id="cfgScore" type="color" /></label>
+        <label>高分色<input id="cfgHigh" type="color" /></label>
+        <label>边框色<input id="cfgAccent" type="color" /></label>
+      </div>
+
+      <div class="section">
+        <label>标题字号<input id="cfgTitleSize" type="range" min="24" max="90" /></label>
+        <label>标题左右<input id="cfgTitleX" type="range" min="-300" max="300" /></label>
+        <label>标题上下<input id="cfgTitleY" type="range" min="-120" max="180" /></label>
+        <label>生日字号<input id="cfgItemSize" type="range" min="18" max="58" /></label>
+        <label>分数字号<input id="cfgScoreSize" type="range" min="18" max="58" /></label>
+        <label>行间距<input id="cfgGap" type="range" min="4" max="40" /></label>
+        <label>左右间距<input id="cfgColGap" type="range" min="10" max="260" /></label>
+        <label>分数列宽<input id="cfgScoreCol" type="range" min="70" max="190" /></label>
+        <label>显示条数<input id="cfgMaxRows" type="number" min="3" max="80" /></label>
+        <label>高分线<input id="cfgHighLine" type="number" min="60" max="100" /></label>
+        <label>隐藏输入框<input id="cfgHideInput" type="checkbox" /></label>
+      </div>
+
+      <div class="section">
+        <div class="row2">
+          <button id="focusBtn" type="button">开始输入</button>
+          <button id="clearBtn" type="button">清空记录</button>
+        </div>
+        <div class="row2">
+          <button id="sampleBtn" type="button">加示例</button>
+          <button id="exportBtn" type="button">导出数据</button>
+        </div>
+        <div class="hint">
+          输入：<b>5.27</b>、<b>闰5.27</b>、<b>正月初八</b>、<b>1991/5/27</b>，回车上榜。公历按农历换算；普通月和闰月是两套打分。<br />
+          直播时可隐藏功能栏；按 <b>Tab</b> 也能切换。<br />本档是独立版01，榜单和设置只存在这一份里，不和原版、另外两份互通。
+        </div>
+      </div>
+
+      <div class="section">
+        <div>本条逻辑</div>
+        <div class="logic-readout" id="logicText">还没有上榜。输入生日后，这里显示用的是哪套规则、加分原因和口播评语。</div>
+      </div>
+
+      <div class="section">
+        <div>生肖点亮</div>
+        <div class="zodiac-grid" id="zodiacGrid"></div>
+      </div>
+    </aside>
+  </main>
+
+  <button class="toggle-panel" id="togglePanelBtn" type="button">功能栏</button>
+
+  <script>
+    const zodiacList = ["鼠", "牛", "虎", "兔", "龙", "蛇", "马", "羊", "猴", "鸡", "狗", "猪"];
+    const zodiacPy = { 鼠: "shu", 牛: "niu", 虎: "hu", 兔: "tu", 龙: "long", 蛇: "she", 马: "ma", 羊: "yang", 猴: "hou", 鸡: "ji", 狗: "gou", 猪: "zhu" };
+    const monthNames = ["", "正月", "二月", "三月", "四月", "五月", "六月", "七月", "八月", "九月", "十月", "冬月", "腊月"];
+    const monthPy = ["", "zheng yue", "er yue", "san yue", "si yue", "wu yue", "liu yue", "qi yue", "ba yue", "jiu yue", "shi yue", "dong yue", "la yue"];
+    const dayNames = ["", "初一", "初二", "初三", "初四", "初五", "初六", "初七", "初八", "初九", "初十", "十一", "十二", "十三", "十四", "十五", "十六", "十七", "十八", "十九", "二十", "二十一", "二十二", "二十三", "二十四", "二十五", "二十六", "二十七", "二十八", "二十九", "三十"];
+    const dayPy = ["", "chu yi", "chu er", "chu san", "chu si", "chu wu", "chu liu", "chu qi", "chu ba", "chu jiu", "chu shi", "shi yi", "shi er", "shi san", "shi si", "shi wu", "shi liu", "shi qi", "shi ba", "shi jiu", "er shi", "er shi yi", "er shi er", "er shi san", "er shi si", "er shi wu", "er shi liu", "er shi qi", "er shi ba", "er shi jiu", "san shi"];
+
+    const defaultConfig = {
+      title: "生日热度榜",
+      subtitle: "输入生日，点亮直播间热度",
+      suffix: "热度",
+      zodiac: "羊",
+      bg: "#1a1a1a",
+      text: "#eaf25b",
+      pinyin: "#d8d66c",
+      score: "#f4f4f6",
+      high: "#e33a2e",
+      accent: "#18b987",
+      titleSize: 44,
+      titleX: 0,
+      titleY: 0,
+      itemSize: 28,
+      scoreSize: 28,
+      gap: 12,
+      colGap: 120,
+      scoreCol: 116,
+      maxRows: 18,
+      highLine: 90,
+      hideInput: false,
+    };
+
+    let config = load("birthdayHeatConfig_standalone_slot01", defaultConfig);
+    let records = load("birthdayHeatRecords_standalone_slot01", []);
+
+    const els = {
+      root: document.documentElement,
+      body: document.body,
+      title: document.getElementById("titleText"),
+      subtitle: document.getElementById("subtitleText"),
+      input: document.getElementById("birthdayInput"),
+      records: document.getElementById("records"),
+      stats: document.getElementById("stats"),
+      zodiacGrid: document.getElementById("zodiacGrid"),
+    };
+
+    function load(key, fallback) {
+      try {
+        const raw = localStorage.getItem(key);
+        if (!raw) return structuredClone(fallback);
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(fallback)) return Array.isArray(parsed) ? parsed : structuredClone(fallback);
+        return { ...fallback, ...parsed };
+      } catch {
+        return structuredClone(fallback);
+      }
+    }
+
+    function save() {
+      localStorage.setItem("birthdayHeatConfig_standalone_slot01", JSON.stringify(config));
+      localStorage.setItem("birthdayHeatRecords_standalone_slot01", JSON.stringify(records));
+    }
+
+    function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+
+    function hashStr(str) {
+      let h = 2166136261;
+      for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+      return h >>> 0;
+    }
+
+    function seedPick(arr, seed, salt) {
+      if (!arr || !arr.length) return "";
+      const x = (Math.imul(seed ^ (salt * 2654435761), 1597334677) >>> 0);
+      return arr[x % arr.length];
+    }
+
+    function cnMonthToNum(t) {
+      const map = { 正: 1, 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10, 冬: 11, 腊: 12 };
+      if (map[t] != null) return map[t];
+      if (t === "十一") return 11;
+      if (t === "十二") return 12;
+      return 0;
+    }
+
+    function cnDayToNum(t) {
+      const digits = { 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10 };
+      if (t.startsWith("初")) {
+        const d = t.slice(1);
+        if (d === "十") return 10;
+        return digits[d] || 0;
+      }
+      if (t === "三十") return 30;
+      if (t === "二十") return 20;
+      if (t.startsWith("廿")) return 20 + (digits[t.slice(1)] || 0);
+      if (t.startsWith("二十")) return t === "二十" ? 20 : 20 + (digits[t[2]] || 0);
+      if (t.startsWith("十")) return t === "十" ? 10 : 10 + (digits[t[1]] || 0);
+      return digits[t] || 0;
+    }
+
+    // 普通月、闰月两套热度。同一天重复输入，分数不变。
+    function scoreBirthday(month, day, isLeap, animal) {
+      const seed = hashStr(`${isLeap ? "L" : "N"}-${month}-${day}|${animal}`);
+      const luckyDays = new Set([1, 2, 3, 5, 6, 8, 9, 15, 16, 18, 19, 23, 24, 26, 28]);
+      const topDays = new Set([1, 8, 15, 16, 18, 28]);
+      const softDays = new Set([4, 7, 14, 21, 27, 30]);
+      const luckyMonths = new Set([1, 2, 5, 6, 8, 9, 10]);
+      const reasons = [];
+      let bonus = 0;
+
+      if (topDays.has(day)) { bonus += 14; reasons.push("吉日高峰"); }
+      else if (luckyDays.has(day)) { bonus += 8; reasons.push("吉日"); }
+      else if (softDays.has(day)) { bonus += 2; }
+      else { bonus += 4; }
+
+      if (luckyMonths.has(month)) { bonus += 6; reasons.push("旺月"); }
+      else { bonus += 3; }
+
+      if (day <= 3) { bonus += 3; reasons.push("月头生发"); }
+      if (day >= 14 && day <= 16) { bonus += 5; reasons.push("月圆圆满"); }
+      if (day === 30) { bonus += 2; }
+
+      if (month === day || (month >= 10 && day === month)) {
+        bonus += 7;
+        reasons.push("日月同辉");
+      }
+
+      if (String(month * 100 + day).includes("8") || day === 8 || month === 8) { bonus += 4; reasons.push("逢八旺"); }
+      if (day === 6 || month === 6 || day === 16 || day === 26) { bonus += 3; reasons.push("逢六顺"); }
+      if (day === 9 || month === 9 || day === 19 || day === 29) { bonus += 3; reasons.push("逢九久"); }
+
+      if (isLeap) {
+        bonus += 10;
+        reasons.push("闰月珍稀");
+        if (topDays.has(day)) bonus += 6;
+        if (softDays.has(day)) bonus -= 1;
+        if (month === 1 || month === 8) { bonus += 5; reasons.push("闰月旺位"); }
+        bonus += ((seed % 21) / 21) * 4 - 1;
+      } else {
+        bonus += ((seed % 17) / 17) * 3 - 1;
+        if (month === 1) { bonus += 4; reasons.push("正月开年"); }
+        if (month === 8) { bonus += 3; reasons.push("中秋气场"); }
+      }
+
+      let score = clamp(Math.round(62 + bonus), 60, 100);
+      if (!isLeap && ((month === 1 && day === 1) || (month === 8 && day === 15) || (month === day && topDays.has(day)))) score = Math.max(score, 98);
+      if (isLeap && topDays.has(day) && luckyMonths.has(month)) score = Math.max(score, 97);
+      if (!isLeap && month === 1 && (day === 1 || day === 8 || day === 15)) score = Math.max(score, 99);
+      if (isLeap && month === 1 && day === 1) score = 100;
+      if (!isLeap && month === 8 && day === 15) score = 100;
+      if (!isLeap && month === 1 && day === 1) score = 100;
+      if (isLeap && score === scoreBirthday(month, day, false, animal).score) {
+        score = score === 100 ? 99 : score + 1;
+      }
+
+      return { score, reasons, mode: isLeap ? "leap" : "normal", seed };
+    }
+
+    function buildMeaning(item, scored) {
+      const { month, day, isLeap, animal } = item;
+      const monthText = monthNames[month];
+      const dayText = dayNames[day];
+      const dateCn = `${isLeap ? "闰" : ""}${monthText}${dayText}`;
+      const { score, seed } = scored;
+      const heads = isLeap
+        ? [`生日${dateCn}（闰月）热度解读`, `闰月生日${dateCn}，气场独特`, `${dateCn}属${animal}，闰月生人热度点评`]
+        : [`生日${dateCn}热度解读`, `${monthText}${dayText}生日，热度点评`, `生日${dateCn}属${animal}，人气气场如下`];
+      const headSym = ["，整体热度偏高、记忆点强", "，是个容易被记住的好日子", "，喜庆感与福气感兼具", "，适合热闹庆生、广结善缘"];
+      const midPool = [`${isLeap ? "闰月" : "正日"}生在${monthText}${dayText}，日历上辨识度${day <= 10 || day === 15 ? "很高" : "不错"}`];
+      if (day === 1 || day === 15) midPool.push("月初或月圆节点，象征新开端与圆满");
+      if (day === 8 || day === 18 || day === 28) midPool.push("带「八」的日子，民间多取发财兴旺之意");
+      if (day === 6 || day === 16 || day === 26) midPool.push("带「六」的日子，寓意顺利顺心");
+      midPool.push(isLeap ? "闰月生日相对少见，独特性会拉高话题热度" : "常规月份生日亲和力强，容易融入节庆氛围");
+      if (isLeap) midPool.push("闰月气场偏加时赛，人生节奏常有意外之喜");
+      midPool.push(`属${animal}，和本场专属生肖「${animal}」同频，互动更自然`);
+      const uniqueMid = [...new Set(midPool)];
+      const m1 = seedPick(uniqueMid, seed, 3);
+      const restMid = uniqueMid.filter((line) => line !== m1);
+      const m2 = restMid.length ? seedPick(restMid, seed, 7) : "";
+      const ends = score >= 92
+        ? ["综合热度很高，适合大力庆生、把这条顶到榜上", "这份生日热度能撑起直播间互动，建议重点念", "气场旺、话题足，属上乘生日热度"]
+        : score < 75
+          ? ["热度中等偏稳，适合温馨带过、细水长流", "不必追高分，重在仪式感与陪伴", "平和耐看，越到后面越有后劲"]
+          : ["热度中上，稳中有喜，日常庆生刚刚好", "整体正向明亮，值得好好过、好好晒", "热度扎实，越分享越有人气"];
+      let text = `${seedPick(heads, seed, 1)}${seedPick(headSym, seed, 2)}。${[m1, m2].filter(Boolean).join("；")}。${seedPick(ends, seed, 99)}。`;
+      if (text.length > 145) text = text.slice(0, 143) + "…";
+      return text;
+    }
+
+    function parseBirthday(value) {
+      const raw = String(value || "").trim();
+      if (!raw) return null;
+      const animal = config.zodiac;
+      const compact = raw.replace(/\s+/g, "");
+
+      let match = compact.match(/^(\d{4})[./-](\d{1,2})[./-](\d{1,2})$/) || compact.match(/^(\d{4})年(\d{1,2})月(\d{1,2})日?$/);
+      if (match) {
+        const year = Number(match[1]);
+        const month = Number(match[2]);
+        const day = Number(match[3]);
+        const date = new Date(year, month - 1, day);
+        if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
+        return lunarFromSolar(date, raw, animal);
+      }
+
+      let isLeap = false;
+      let body = compact;
+      if (/^[闰润]/.test(body)) {
+        isLeap = true;
+        body = body.slice(1);
+      }
+
+      match = body.match(/^(\d{1,2})[./-](\d{1,2})$/);
+      if (match) {
+        const month = Number(match[1]);
+        const day = Number(match[2]);
+        if (month < 1 || month > 12 || day < 1 || day > 30) return null;
+        return makeResult(month, day, raw, animal, isLeap);
+      }
+
+      match = body.match(/^(正|冬|腊|十一|十二|[一二三四五六七八九十])月(初[一二三四五六七八九十]|廿[一二三四五六七八九]|三十|二十[一二三四五六七八九]?|十[一二三四五六七八九]|[一二三四五六七八九十]{1,3})$/);
+      if (match) {
+        const month = cnMonthToNum(match[1]);
+        const day = cnDayToNum(match[2]);
+        if (month < 1 || day < 1 || day > 30) return null;
+        return makeResult(month, day, raw, animal, isLeap);
+      }
+
+      return null;
+    }
+
+    function lunarFromSolar(date, raw, animal) {
+      try {
+        const fmt = new Intl.DateTimeFormat("zh-CN-u-ca-chinese", { year: "numeric", month: "long", day: "numeric" });
+        const parts = Object.fromEntries(fmt.formatToParts(date).map((part) => [part.type, part.value]));
+        const isLeap = String(parts.month || "").includes("闰");
+        const m = String(parts.month || "").replace("闰", "").replace("十一月", "冬月").replace("十二月", "腊月");
+        const day = Number(parts.day);
+        const month = monthNames.indexOf(m);
+        if (month > 0 && day > 0 && day <= 30) return makeResult(month, day, raw, animal, isLeap);
+      } catch {}
+      return null;
+    }
+
+    function makeResult(month, day, raw, animal, isLeap = false) {
+      const scored = scoreBirthday(month, day, isLeap, animal);
+      const monthText = `${isLeap ? "闰" : ""}${monthNames[month]}`;
+      const monthPinyinText = `${isLeap ? "run " : ""}${monthPy[month]}`;
+      const item = {
+        id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
+        raw,
+        month,
+        day,
+        isLeap,
+        animal,
+        text: `${monthText}${dayNames[day]}${animal}`,
+        pinyin: `${monthPinyinText} ${dayPy[day]} ${zodiacPy[animal]}`,
+        score: scored.score,
+        reasons: scored.reasons,
+        scoreMode: scored.mode,
+        meaning: "",
+        createdAt: new Date().toISOString(),
+      };
+      item.meaning = buildMeaning(item, scored);
+      return item;
+    }
+
+    function addBirthday(value) {
+      const item = parseBirthday(value);
+      if (!item) {
+        flashInput();
+        return false;
+      }
+      records.unshift(item);
+      records = records.slice(0, 300);
+      save();
+      render();
+      return true;
+    }
+
+    function flashInput() {
+      els.input.style.borderColor = "#ff4444";
+      setTimeout(() => (els.input.style.borderColor = ""), 180);
+    }
+
+    function applyConfig() {
+      els.root.style.setProperty("--bg", config.bg);
+      els.root.style.setProperty("--text", config.text);
+      els.root.style.setProperty("--pinyin", config.pinyin);
+      els.root.style.setProperty("--score", config.score);
+      els.root.style.setProperty("--high", config.high);
+      els.root.style.setProperty("--accent", config.accent);
+      els.root.style.setProperty("--title-size", `${config.titleSize}px`);
+      els.root.style.setProperty("--title-x", `${config.titleX}px`);
+      els.root.style.setProperty("--title-y", `${config.titleY}px`);
+      els.root.style.setProperty("--item-size", `${config.itemSize}px`);
+      els.root.style.setProperty("--score-size", `${config.scoreSize}px`);
+      els.root.style.setProperty("--gap", `${config.gap}px`);
+      els.root.style.setProperty("--col-gap", `${config.colGap}px`);
+      els.root.style.setProperty("--score-col", `${config.scoreCol}px`);
+      els.title.textContent = config.title;
+      els.subtitle.textContent = config.subtitle;
+      document.body.classList.toggle("hide-input", Boolean(config.hideInput));
+    }
+
+    function render() {
+      applyConfig();
+      const shown = records.slice(0, Number(config.maxRows) || 18);
+      els.records.innerHTML = shown.map((item, index) => {
+        return `
+        <div class="record ${item.score >= config.highLine ? "high" : ""} ${index === 0 ? "top" : ""}">
+          <div class="birthday">
+            <div class="py">${escapeHtml(item.pinyin)}</div>
+            <div class="cn">${escapeHtml(item.text)}</div>
+          </div>
+          <div class="score">${item.score}${escapeHtml(config.suffix)}</div>
+        </div>`;
+      }).join("");
+
+      const max = records.reduce((m, r) => Math.max(m, r.score), 0);
+      const lit = new Set(records.map((r) => r.animal));
+      els.stats.textContent = `上榜 ${records.length} | 最高 ${max || "--"}${config.suffix} | 点亮生肖 ${lit.size}/12`;
+      renderZodiacGrid();
+      renderLogic();
+    }
+
+    function renderLogic() {
+      const box = document.getElementById("logicText");
+      if (!box) return;
+      const item = records[0];
+      if (!item || !item.meaning) {
+        box.textContent = "还没有上榜。输入生日后，这里显示用的是哪套规则、加分原因和口播评语。";
+        return;
+      }
+      const modeName = item.scoreMode === "leap" ? "闰月规则" : "普通月规则";
+      const reasons = item.reasons && item.reasons.length ? item.reasons.join("、") : "平稳计分";
+      box.innerHTML = `<b>${escapeHtml(item.text)}</b> · ${item.score}${escapeHtml(config.suffix)} · ${modeName}<br />原因：${escapeHtml(reasons)}<br />${escapeHtml(item.meaning)}`;
+    }
+
+    function renderZodiacGrid() {
+      const lit = new Set(records.map((r) => r.animal));
+      els.zodiacGrid.innerHTML = zodiacList.map((z) => `<div class="zodiac-pill ${lit.has(z) ? "on" : ""}">${z}</div>`).join("");
+    }
+
+    function escapeHtml(text) {
+      return String(text).replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[m]));
+    }
+
+    function bindControls() {
+      const fields = {
+        cfgTitle: "title",
+        cfgSubtitle: "subtitle",
+        cfgSuffix: "suffix",
+        cfgZodiac: "zodiac",
+        cfgBg: "bg",
+        cfgText: "text",
+        cfgPinyin: "pinyin",
+        cfgScore: "score",
+        cfgHigh: "high",
+        cfgAccent: "accent",
+        cfgTitleSize: "titleSize",
+        cfgTitleX: "titleX",
+        cfgTitleY: "titleY",
+        cfgItemSize: "itemSize",
+        cfgScoreSize: "scoreSize",
+        cfgGap: "gap",
+        cfgColGap: "colGap",
+        cfgScoreCol: "scoreCol",
+        cfgMaxRows: "maxRows",
+        cfgHighLine: "highLine",
+        cfgHideInput: "hideInput",
+      };
+
+      const zodiacSelect = document.getElementById("cfgZodiac");
+      zodiacSelect.innerHTML = zodiacList.map((z) => `<option value="${z}">${z}</option>`).join("");
+
+      for (const [id, key] of Object.entries(fields)) {
+        const el = document.getElementById(id);
+        if (!el) continue;
+        if (el.type === "checkbox") el.checked = Boolean(config[key]);
+        else el.value = config[key];
+        el.addEventListener("input", () => {
+          config[key] = el.type === "checkbox" ? el.checked : (el.type === "number" || el.type === "range" ? Number(el.value) : el.value);
+          save();
+          render();
+        });
+      }
+    }
+
+    document.getElementById("focusBtn").addEventListener("click", () => els.input.focus());
+    document.getElementById("clearBtn").addEventListener("click", () => {
+      if (confirm("确定清空当前记录吗？")) {
+        records = [];
+        save();
+        render();
+        els.input.focus();
+      }
+    });
+    document.getElementById("sampleBtn").addEventListener("click", () => {
+      ["5.27", "闰2.1", "正月初一", "8.15", "三月十六", "1991/5/27"].forEach(addBirthday);
+      els.input.focus();
+    });
+    document.getElementById("exportBtn").addEventListener("click", async () => {
+      const text = records.map((r) => {
+        const modeName = r.scoreMode === "leap" ? "闰月" : "普通";
+        const reasons = (r.reasons || []).join("/");
+        return `${r.raw},${r.text},${r.score}${config.suffix},${modeName},${reasons},${r.meaning || ""}`;
+      }).join("\n");
+      await navigator.clipboard.writeText(text);
+      alert("已复制到剪贴板");
+    });
+    document.getElementById("hidePanelBtn").addEventListener("click", () => document.body.classList.add("panel-hidden"));
+    document.getElementById("togglePanelBtn").addEventListener("click", () => document.body.classList.toggle("panel-hidden"));
+
+    els.input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        if (addBirthday(els.input.value)) els.input.value = "";
+      }
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Tab") {
+        event.preventDefault();
+        document.body.classList.toggle("panel-hidden");
+        return;
+      }
+      const target = event.target;
+      const isEditingControl = target && (
+        target.closest?.(".control-panel") ||
+        ["INPUT", "SELECT", "TEXTAREA", "BUTTON"].includes(target.tagName) ||
+        target.isContentEditable
+      );
+      if (isEditingControl) return;
+      if (!event.ctrlKey && !event.altKey && !event.metaKey && document.activeElement !== els.input) {
+        els.input.focus();
+      }
+    });
+
+    document.getElementById("stage").addEventListener("click", () => els.input.focus());
+
+    bindControls();
+    render();
+    setTimeout(() => els.input.focus(), 100);
+  </script>
+
+<!-- AUTO_LIVE_V1_INTEGRATED -->
+<script>
+(() => {
+  const CFG_KEY = "birthdayLiveAutoConfig_standalone_slot01";
+  const SESSION_KEY = "birthdayLiveAutoSession_standalone_slot01";
+  const DEFAULT_CFG = {
+    needHearts: 10,
+    giftName: "小红心",
+    remindMin: 70,
+    remindMax: 100,
+    giftIdle: 45,
+    speechSuffix: "分",
+    speechRate: 1,
+    remindText: "小手指的地方点够10颗小红心，没点够的去补一下。",
+    voiceName: ""
+  };
+
+  function readJson(key, fallback) {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? Object.assign({}, fallback, JSON.parse(raw)) : Object.assign({}, fallback);
+    } catch {
+      return Object.assign({}, fallback);
+    }
+  }
+
+  let cfg = readJson(CFG_KEY, DEFAULT_CFG);
+  const saved = readJson(SESSION_KEY, { users: {}, done: 0 });
+  const st = {
+    enabled: false,
+    users: saved.users && typeof saved.users === "object" ? saved.users : {},
+    queue: [],
+    done: Number(saved.done) || 0,
+    speaking: false,
+    lastGiftAt: 0,
+    nextReminderAt: 0,
+    processing: false
+  };
+  Object.values(st.users).forEach((u) => { if (!u.processed) u.queued = false; });
+
+  const css = document.createElement("style");
+  css.textContent = [
+    ".auto-live-box{margin-top:10px;padding:10px;border:1px solid rgba(24,185,135,.35);border-radius:8px;background:rgba(0,0,0,.16)}",
+    ".auto-live-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;font-weight:800}",
+    ".auto-live-state{display:inline-flex;align-items:center;gap:6px;color:#aaa;font-size:12px}",
+    ".auto-live-dot{width:9px;height:9px;border-radius:50%;background:#777}.auto-live-dot.on{background:#18b987;box-shadow:0 0 10px rgba(24,185,135,.8)}",
+    ".auto-live-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0}",
+    ".auto-live-stat{padding:7px 4px;border:1px solid rgba(255,255,255,.1);border-radius:6px;text-align:center;background:#181818}",
+    ".auto-live-stat b{display:block;color:#fff;font-size:16px}.auto-live-stat span{color:#999;font-size:11px}",
+    ".auto-live-queue,.auto-live-log{max-height:122px;overflow:auto;margin-top:8px;padding:7px;border:1px solid rgba(255,255,255,.1);border-radius:6px;background:#121212;color:#ccc;font-size:12px;line-height:1.55}",
+    ".auto-live-log{max-height:145px}.auto-live-line{padding:3px 0;border-bottom:1px dashed rgba(255,255,255,.08)}",
+    ".auto-live-warn{color:#ffd166}"
+  ].join("");
+  document.head.appendChild(css);
+
+  const logicSection = document.getElementById("logicText")?.closest(".section");
+  const section = document.createElement("div");
+  section.className = "section";
+  section.id = "autoLiveSection";
+  section.innerHTML = [
+    '<div class="auto-live-box">',
+      '<div class="auto-live-head"><span>自动直播 V1</span><span class="auto-live-state"><i id="autoLiveDot" class="auto-live-dot"></i><span id="autoLiveStateText">关闭</span></span></div>',
+      '<button id="autoLiveToggleBtn" type="button">开启自动直播</button>',
+      '<div class="auto-live-stats">',
+        '<div class="auto-live-stat"><b id="autoStatUsers">0</b><span>记录观众</span></div>',
+        '<div class="auto-live-stat"><b id="autoStatWait">0</b><span>待补红心</span></div>',
+        '<div class="auto-live-stat"><b id="autoStatDone">0</b><span>已播报</span></div>',
+      '</div>',
+      '<label>红心门槛<input id="autoNeedHearts" type="number" min="1" max="999" value="10" /></label>',
+      '<label>目标礼物<input id="autoGiftName" type="text" value="小红心" /></label>',
+      '<label>提醒最短秒<input id="autoRemindMin" type="number" min="10" value="70" /></label>',
+      '<label>提醒最长秒<input id="autoRemindMax" type="number" min="10" value="100" /></label>',
+      '<label>无人送礼秒<input id="autoGiftIdle" type="number" min="10" value="45" /></label>',
+      '<label>口播后缀<input id="autoSpeechSuffix" type="text" value="分" /></label>',
+      '<label>语速<input id="autoSpeechRate" type="number" min="0.5" max="2" step="0.1" value="1" /></label>',
+      '<label>声音<select id="autoVoiceSelect"></select></label>',
+      '<label>提醒话术<input id="autoRemindText" type="text" /></label>',
+      '<div class="row2"><button id="autoVoiceTestBtn" type="button">测试语音</button><button id="autoClearSessionBtn" type="button">清本场观众</button></div>',
+      '<div class="hint">观众发生日先记录；同一观众累计满10颗“小红心”后，才自动调用当前页面原来的生日算法上榜并口播。隐藏功能栏后自动逻辑仍继续。</div>',
+      '<div class="auto-live-queue" id="autoQueueBox">暂无达标排队</div>',
+      '<div style="margin-top:10px;font-weight:700;font-size:13px;">本地测试</div>',
+      '<label>测试昵称<input id="autoTestNick" type="text" value="测试观众" /></label>',
+      '<label>测试评论<input id="autoTestComment" type="text" value="5.27" /></label>',
+      '<div class="row2"><button id="autoTestCommentBtn" type="button">模拟评论</button><button id="autoTestHeartBtn" type="button">+10 小红心</button></div>',
+      '<div class="auto-live-log" id="autoLiveLog"></div>',
+    '</div>'
+  ].join("");
+  if (logicSection) logicSection.parentNode.insertBefore(section, logicSection);
+  else document.getElementById("controlPanel")?.appendChild(section);
+
+  const $ = (id) => document.getElementById(id);
+  const saveCfg = () => localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+  const saveSession = () => localStorage.setItem(SESSION_KEY, JSON.stringify({ users: st.users, done: st.done }));
+
+  function log(message) {
+    const box = $("autoLiveLog");
+    if (!box) return;
+    const line = document.createElement("div");
+    line.className = "auto-live-line";
+    line.textContent = new Date().toLocaleTimeString() + "  " + message;
+    box.prepend(line);
+    while (box.children.length > 80) box.removeChild(box.lastChild);
+  }
+
+  function uidOf(e) {
+    return String((e && (e.uid || e.userId || e.openid || e.nickname)) || "unknown");
+  }
+
+  function getUser(e) {
+    const uid = uidOf(e);
+    if (!st.users[uid]) {
+      st.users[uid] = {
+        uid: uid,
+        nickname: (e && e.nickname) || uid,
+        birthday: "",
+        hearts: 0,
+        lastText: "",
+        status: "等待生日",
+        processed: false,
+        queued: false
+      };
+    }
+    if (e && e.nickname) st.users[uid].nickname = e.nickname;
+    return st.users[uid];
+  }
+
+  function normalizeBirthdayComment(value) {
+    let t = String(value || "").trim().replace(/\s+/g, "");
+    if (!t) return "";
+    t = t.replace(/^生日[:：]?/, "").replace(/^公历/, "").replace(/^农历/, "");
+
+    const md = t.match(/^(\d{1,2})月(\d{1,2})(?:日|号)?$/);
+    if (md) t = Number(md[1]) + "." + Number(md[2]);
+
+    return parseBirthday(t) ? t : "";
+  }
+
+  function maybeQueue(user) {
+    const need = Math.max(1, Number(cfg.needHearts) || 10);
+    if (!user || user.processed || user.queued) return;
+
+    if (user.birthday && user.hearts >= need) {
+      user.queued = true;
+      user.status = "已达标排队";
+      st.queue.push(user.uid);
+      log(user.nickname + " 已满 " + user.hearts + " 颗" + (cfg.giftName || "小红心") + "，进入队列");
+      renderAuto();
+      saveSession();
+      processQueue();
+    } else if (user.birthday) {
+      user.status = "待补红心 " + user.hearts + "/" + need;
+    } else {
+      user.status = "等待生日";
+    }
+  }
+
+  function onComment(e) {
+    const user = getUser(e || {});
+    user.lastText = String((e && e.text) || "");
+    const birthday = normalizeBirthdayComment(user.lastText);
+    if (birthday) {
+      user.birthday = birthday;
+      user.status = "已记生日";
+      log("记录生日：" + user.nickname + " → " + birthday);
+      maybeQueue(user);
+    }
+    renderAuto();
+    saveSession();
+    return Boolean(birthday);
+  }
+
+  function onGift(e) {
+    e = e || {};
+    const target = String(cfg.giftName || "小红心").trim();
+    const giftName = String(e.giftName || e.name || target || "小红心");
+
+    if (e.giftName && target && giftName !== target && !giftName.includes(target)) {
+      log("忽略礼物：" + (e.nickname || "观众") + " → " + giftName);
+      return false;
+    }
+
+    const user = getUser(e);
+    const count = Math.max(0, Number(e.count ?? e.giftCount ?? 1) || 0);
+    if (!count) return false;
+
+    user.hearts += count;
+    user.lastText = giftName + " × " + count;
+    st.lastGiftAt = Date.now();
+    log(user.nickname + " +" + count + " " + (target || "小红心") + "，累计 " + user.hearts);
+    maybeQueue(user);
+    renderAuto();
+    saveSession();
+    return true;
+  }
+
+  async function submitBirthday(payload) {
+    const birthday = String((payload && payload.birthday) || "").trim();
+    const oldId = records[0] && records[0].id;
+    if (!addBirthday(birthday)) throw new Error("生日格式无法识别：" + birthday);
+
+    const item = records[0];
+    if (!item || item.id === oldId) throw new Error("生日没有生成新的榜单结果");
+
+    const suffix = String(cfg.speechSuffix || "分");
+    return {
+      birthdayText: item.text,
+      score: item.score,
+      scoreText: item.score + suffix,
+      speakText: ((payload && payload.nickname) ? payload.nickname + "，" : "") + item.text + "，" + item.score + suffix,
+      item: item
+    };
+  }
+
+  window.submitBirthdayAuto = submitBirthday;
+
+  function loadVoices() {
+    if (!("speechSynthesis" in window)) return;
+    const select = $("autoVoiceSelect");
+    if (!select) return;
+    const voices = speechSynthesis.getVoices();
+    select.innerHTML = "";
+    voices.forEach((voice) => {
+      const option = document.createElement("option");
+      option.value = voice.name;
+      option.textContent = voice.name + " · " + voice.lang;
+      select.appendChild(option);
+    });
+    const preferred = cfg.voiceName && voices.find((v) => v.name === cfg.voiceName);
+    const zh = voices.find((v) => /^zh/i.test(v.lang));
+    if (preferred) select.value = preferred.name;
+    else if (zh) select.value = zh.name;
+  }
+
+  function speak(text) {
+    return new Promise((resolve, reject) => {
+      if (!text) return resolve();
+      if (!("speechSynthesis" in window)) return reject(new Error("当前浏览器不支持系统语音"));
+
+      speechSynthesis.cancel();
+      st.speaking = true;
+
+      const utter = new SpeechSynthesisUtterance(text);
+      const voices = speechSynthesis.getVoices();
+      const selectedName = $("autoVoiceSelect")?.value || cfg.voiceName;
+      const voice = voices.find((v) => v.name === selectedName) || voices.find((v) => /^zh/i.test(v.lang));
+      if (voice) utter.voice = voice;
+      utter.rate = Math.max(0.5, Math.min(2, Number(cfg.speechRate) || 1));
+      utter.volume = 1;
+
+      utter.onend = () => {
+        st.speaking = false;
+        resolve();
+      };
+      utter.onerror = (event) => {
+        st.speaking = false;
+        reject(new Error(event.error || "语音播放失败"));
+      };
+
+      log("口播：" + text);
+      speechSynthesis.speak(utter);
+    });
+  }
+
+  async function processQueue() {
+    if (!st.enabled || st.speaking || st.processing || !st.queue.length) return;
+    st.processing = true;
+
+    const uid = st.queue[0];
+    const user = st.users[uid];
+    if (!user) {
+      st.queue.shift();
+      st.processing = false;
+      return processQueue();
+    }
+
+    try {
+      user.status = "正在打生日";
+      renderAuto();
+
+      const result = await submitBirthday({
+        uid: user.uid,
+        nickname: user.nickname,
+        birthday: user.birthday,
+        hearts: user.hearts
+      });
+
+      await speak(result.speakText);
+
+      user.processed = true;
+      user.queued = false;
+      user.status = "已播报";
+      st.done += 1;
+      st.queue.shift();
+      log("完成：" + user.nickname + " → " + result.birthdayText + " / " + result.scoreText);
+      saveSession();
+      renderAuto();
+    } catch (error) {
+      user.queued = false;
+      user.status = "处理失败";
+      st.queue.shift();
+      log("处理失败：" + user.nickname + " → " + error.message);
+      renderAuto();
+    }
+
+    st.processing = false;
+    setTimeout(processQueue, 350);
+  }
+
+  function scheduleReminder() {
+    const min = Math.max(10, Number(cfg.remindMin) || 70);
+    const max = Math.max(min, Number(cfg.remindMax) || 100);
+    st.nextReminderAt = Date.now() + (min + Math.random() * (max - min)) * 1000;
+  }
+
+  async function reminderTick() {
+    if (!st.enabled || st.speaking || st.queue.length) return;
+    if (Date.now() < st.nextReminderAt) return;
+
+    const idle = Math.max(10, Number(cfg.giftIdle) || 45) * 1000;
+    if (st.lastGiftAt && Date.now() - st.lastGiftAt < idle) {
+      scheduleReminder();
+      return;
+    }
+
+    try {
+      await speak(cfg.remindText);
+    } catch (error) {
+      log("提醒口播失败：" + error.message);
+    }
+    scheduleReminder();
+  }
+
+  function renderAuto() {
+    const users = Object.values(st.users);
+    const need = Math.max(1, Number(cfg.needHearts) || 10);
+    $("autoLiveDot")?.classList.toggle("on", st.enabled);
+    if ($("autoLiveStateText")) $("autoLiveStateText").textContent = st.enabled ? "运行中" : "关闭";
+    if ($("autoLiveToggleBtn")) $("autoLiveToggleBtn").textContent = st.enabled ? "关闭自动直播" : "开启自动直播";
+    if ($("autoStatUsers")) $("autoStatUsers").textContent = users.length;
+    if ($("autoStatWait")) $("autoStatWait").textContent = users.filter((u) => u.birthday && !u.processed && u.hearts < need).length;
+    if ($("autoStatDone")) $("autoStatDone").textContent = st.done;
+
+    const box = $("autoQueueBox");
+    if (box) {
+      if (!st.queue.length) {
+        box.textContent = "暂无达标排队";
+      } else {
+        box.innerHTML = st.queue.map((uid, i) => {
+          const u = st.users[uid];
+          if (!u) return "";
+          return '<div class="auto-live-line"><span class="auto-live-warn">#' + (i + 1) + '</span> ' +
+            escapeHtml(u.nickname) + " · " + escapeHtml(u.birthday) + " · " + u.hearts + "/" + need + "</div>";
+        }).join("");
+      }
+    }
+  }
+
+  function bindValue(id, key, numeric) {
+    const el = $(id);
+    if (!el) return;
+    el.value = cfg[key];
+    el.addEventListener("input", () => {
+      cfg[key] = numeric ? Number(el.value) : el.value;
+      saveCfg();
+      renderAuto();
+    });
+  }
+
+  bindValue("autoNeedHearts", "needHearts", true);
+  bindValue("autoGiftName", "giftName", false);
+  bindValue("autoRemindMin", "remindMin", true);
+  bindValue("autoRemindMax", "remindMax", true);
+  bindValue("autoGiftIdle", "giftIdle", true);
+  bindValue("autoSpeechSuffix", "speechSuffix", false);
+  bindValue("autoSpeechRate", "speechRate", true);
+  bindValue("autoRemindText", "remindText", false);
+
+  $("autoLiveToggleBtn")?.addEventListener("click", () => {
+    st.enabled = !st.enabled;
+    if (st.enabled) {
+      scheduleReminder();
+      log("自动直播已开启");
+      Object.values(st.users).forEach(maybeQueue);
+      processQueue();
+    } else {
+      if ("speechSynthesis" in window) speechSynthesis.cancel();
+      st.speaking = false;
+      log("自动直播已关闭");
+    }
+    renderAuto();
+  });
+
+  $("autoVoiceTestBtn")?.addEventListener("click", () => {
+    speak("语音测试正常，小手指的地方点够十颗小红心，没点够的去补一下。")
+      .catch((error) => log("语音测试失败：" + error.message));
+  });
+
+  $("autoVoiceSelect")?.addEventListener("change", (event) => {
+    cfg.voiceName = event.target.value;
+    saveCfg();
+  });
+
+  $("autoClearSessionBtn")?.addEventListener("click", () => {
+    if (!confirm("确定清空自动直播本场观众、红心累计和已播报记录吗？生日榜单不会被清空。")) return;
+    st.users = {};
+    st.queue = [];
+    st.done = 0;
+    st.lastGiftAt = 0;
+    st.processing = false;
+    saveSession();
+    renderAuto();
+    log("已清空自动直播本场数据");
+  });
+
+  $("autoTestCommentBtn")?.addEventListener("click", () => {
+    const nickname = $("autoTestNick")?.value.trim() || "测试观众";
+    const textValue = $("autoTestComment")?.value.trim() || "5.27";
+    onComment({ uid: "test:" + nickname, nickname: nickname, text: textValue });
+  });
+
+  $("autoTestHeartBtn")?.addEventListener("click", () => {
+    const nickname = $("autoTestNick")?.value.trim() || "测试观众";
+    onGift({
+      uid: "test:" + nickname,
+      nickname: nickname,
+      giftName: cfg.giftName || "小红心",
+      count: Math.max(1, Number(cfg.needHearts) || 10)
+    });
+  });
+
+  if ("speechSynthesis" in window) {
+    speechSynthesis.onvoiceschanged = loadVoices;
+    loadVoices();
+  }
+
+  window.BirthdayLiveAuto = {
+    version: "1.1.0-integrated",
+    comment: onComment,
+    gift: onGift,
+    speak: speak,
+    processQueue: processQueue,
+    getState: () => st,
+    getConfig: () => cfg,
+    submitBirthday: submitBirthday
+  };
+
+  try {
+    const channel = new BroadcastChannel("birthday-live-v1");
+    channel.onmessage = (event) => {
+      const data = event.data || {};
+      if (data.type === "comment") onComment(data);
+      if (data.type === "gift") onGift(data);
+    };
+    window.BirthdayLiveAuto.channel = channel;
+  } catch {}
+
+  renderAuto();
+  setInterval(reminderTick, 1000);
+  log("自动直播 V1 已接入原生日页面。先用“本地测试”验证流程。");
+})();
+</script>
+</body>
+</html>
