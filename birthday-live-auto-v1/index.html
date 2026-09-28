@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>生日直播自动说话 V1</title>
+<style>
+:root{--bg:#0b0d10;--panel:#15191f;--line:#2b313b;--text:#eef2f7;--muted:#9aa4b2;--good:#25c26e;--warn:#ffb020;--danger:#ff5d5d;--accent:#20c997}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:"Microsoft YaHei",system-ui,sans-serif}
+.wrap{display:grid;grid-template-columns:minmax(640px,1fr) 380px;min-height:100vh}.main{padding:18px}.side{border-left:1px solid var(--line);background:#11151a;padding:16px}
+h1{font-size:24px;margin:0 0 14px}.sub{color:var(--muted);font-size:13px;margin-bottom:16px}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}.card b{font-size:22px;display:block}.card span{font-size:12px;color:var(--muted)}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px}.box h2{font-size:16px;margin:0 0 12px}
+.row{display:flex;gap:8px;align-items:center;margin:8px 0}.row label{width:110px;color:#cfd6df;font-size:13px}.row input,.row select,.row textarea{flex:1;background:#0d1014;border:1px solid #39414d;color:#fff;border-radius:7px;padding:8px}
+button{background:#232a33;border:1px solid #46505e;color:#fff;padding:8px 12px;border-radius:7px;cursor:pointer}button.primary{background:#0f755d;border-color:#15977a}.danger{background:#6d2323!important}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:9px;border-bottom:1px solid var(--line);text-align:left}th{color:#aeb7c3}.tag{display:inline-block;padding:3px 7px;border-radius:999px;background:#27303a;font-size:12px}.ok{color:#5ce69a}.wait{color:#ffd166}.muted{color:var(--muted)}
+.log{height:240px;overflow:auto;background:#090b0e;border:1px solid var(--line);border-radius:8px;padding:9px;font-size:12px;line-height:1.7}.log div{border-bottom:1px dashed #20252c;padding:3px 0}
+.queue{max-height:180px;overflow:auto}.queueItem{padding:8px;border:1px solid var(--line);border-radius:8px;margin:6px 0;background:#10141a}
+.switch{display:flex;justify-content:space-between;align-items:center}.statusDot{width:10px;height:10px;border-radius:50%;display:inline-block;background:#666;margin-right:6px}.on{background:var(--good)}
+.small{font-size:12px;color:var(--muted)}.notice{font-size:12px;color:#c4ccd6;background:#0f1318;padding:9px;border-radius:7px;border:1px solid var(--line)}
+@media(max-width:1050px){.wrap{grid-template-columns:1fr}.side{border-left:0;border-top:1px solid var(--line)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<section class="main">
+  <h1>生日直播自动说话 V1</h1>
+  <div class="sub">逻辑版：评论记生日 → 小红心累计 → 满 10 自动入队 → 调生日函数 → 自动播报；空闲时自动提醒。</div>
+
+  <div class="cards">
+    <div class="card"><b id="cUsers">0</b><span>已记录观众</span></div>
+    <div class="card"><b id="cWait">0</b><span>等待补红心</span></div>
+    <div class="card"><b id="cQueue">0</b><span>已达标排队</span></div>
+    <div class="card"><b id="cDone">0</b><span>已播报</span></div>
+  </div>
+
+  <div class="box">
+    <h2>观众状态</h2>
+    <table>
+      <thead><tr><th>昵称</th><th>生日</th><th>小红心</th><th>状态</th><th>最近内容</th></tr></thead>
+      <tbody id="userRows"></tbody>
+    </table>
+  </div>
+
+  <div class="box">
+    <h2>达标队列</h2>
+    <div id="queue" class="queue"></div>
+  </div>
+
+  <div class="box">
+    <h2>事件日志</h2>
+    <div id="log" class="log"></div>
+  </div>
+</section>
+
+<aside class="side">
+  <div class="box">
+    <div class="switch">
+      <h2 style="margin:0">自动直播</h2>
+      <div><span id="dot" class="statusDot"></span><span id="runText">关闭</span></div>
+    </div>
+    <div class="row"><button id="toggle" class="primary" style="width:100%">开启自动模式</button></div>
+    <div class="row"><label>红心门槛</label><input id="needHearts" type="number" min="1" value="10"></div>
+    <div class="row"><label>提醒最短秒</label><input id="remindMin" type="number" min="10" value="70"></div>
+    <div class="row"><label>提醒最长秒</label><input id="remindMax" type="number" min="10" value="100"></div>
+    <div class="row"><label>无人送礼秒</label><input id="giftIdle" type="number" min="10" value="45"></div>
+    <div class="row"><label>提醒话术</label><textarea id="remindText" rows="3">小手指的地方点够10颗小红心，没点够的去补一下。</textarea></div>
+  </div>
+
+  <div class="box">
+    <h2>语音</h2>
+    <div class="row"><label>声音</label><select id="voice"></select></div>
+    <div class="row"><label>语速</label><input id="rate" type="number" min="0.5" max="2" step="0.1" value="1"></div>
+    <div class="row"><label>音量</label><input id="volume" type="number" min="0" max="1" step="0.1" value="1"></div>
+    <div class="row"><button id="testVoice">测试语音</button><button id="stopVoice">停止</button></div>
+  </div>
+
+  <div class="box">
+    <h2>生日页面接入</h2>
+    <div class="notice">V1 会优先调用页面里的 <b>window.submitBirthdayAuto(payload)</b>。你的原生日 HTML 接进来后，只要这个函数返回结果文字或对象，就会自动念。</div>
+    <div class="row"><button id="testAdapter">测试生日接口</button></div>
+    <div class="small">支持返回：字符串；或 { birthdayText, scoreText, speakText }。</div>
+  </div>
+
+  <div class="box">
+    <h2>本地测试</h2>
+    <div class="row"><label>昵称</label><input id="nick" value="测试观众"></div>
+    <div class="row"><label>评论</label><input id="comment" value="5.27"></div>
+    <div class="row"><button id="sendComment">模拟评论</button></div>
+    <div class="row"><label>加红心</label><input id="heartCount" type="number" value="10"></div>
+    <div class="row"><button id="sendHeart">模拟小红心</button></div>
+    <div class="row"><button id="reset" class="danger">清空本场数据</button></div>
+  </div>
+
+  <div class="box">
+    <h2>给直播监听器的接口</h2>
+    <div class="small">
+      BirthdayLiveAuto.comment({uid,nickname,text})<br>
+      BirthdayLiveAuto.gift({uid,nickname,count,giftName})<br>
+      也支持 BroadcastChannel：birthday-live-v1
+    </div>
+  </div>
+</aside>
+</div>
+
+<script>
+(()=>{
+const KEY="birthday_live_auto_v1";
+const state={running:false,users:{},queue:[],done:0,speaking:false,lastGiftAt:0,nextReminderAt:0};
+const $=id=>document.getElementById(id);
+const now=()=>Date.now();
+function log(msg){const d=document.createElement("div");d.textContent=new Date().toLocaleTimeString()+"  "+msg;$("log").prepend(d)}
+function save(){localStorage.setItem(KEY,JSON.stringify({users:state.users,done:state.done}))}
+function load(){try{const x=JSON.parse(localStorage.getItem(KEY)||"{}");state.users=x.users||{};state.done=x.done||0}catch(e){}}
+function cfg(){
+  const a=+($("remindMin").value||70),b=+($("remindMax").value||100);
+  return {need:+($("needHearts").value||10),min:Math.min(a,b),max:Math.max(a,b),giftIdle:+($("giftIdle").value||45),remind:$("remindText").value.trim()};
+}
+function uidOf(e){return String(e.uid||e.userId||e.nickname||"unknown")}
+function getUser(e){
+  const id=uidOf(e);
+  if(!state.users[id]) state.users[id]={uid:id,nickname:e.nickname||id,birthday:"",hearts:0,status:"等待生日",lastText:"",processed:false,queued:false};
+  if(e.nickname) state.users[id].nickname=e.nickname;
+  return state.users[id];
+}
+function parseBirthday(text){
+  if(!text)return "";
+  let s=String(text).trim().replace(/\s+/g,"");
+  const ymd=s.match(/(?:\d{4}[\/\-.年])?(\d{1,2})[\/\-.月](\d{1,2})(?:日|号)?/);
+  if(ymd){const m=+ymd[1],d=+ymd[2];if(m>=1&&m<=12&&d>=1&&d<=31)return m+"."+d}
+  const cn=s.match(/((?:农历)?(?:正月|冬月|腊月|[一二三四五六七八九十]{1,3}月)(?:初?[一二三四五六七八九十]|二十|二十一|二十二|二十三|二十四|二十五|二十六|二十七|二十八|二十九|三十|廿[一二三四五六七八九])(?:日|号)?)/);
+  if(cn)return cn[1];
+  return "";
+}
+function maybeQueue(u){
+  const c=cfg();
+  if(u.processed||u.queued)return;
+  if(u.birthday&&u.hearts>=c.need){
+    u.queued=true;u.status="已达标排队";state.queue.push(u.uid);
+    log(u.nickname+" 已满 "+u.hearts+" 颗小红心，进入生日队列");
+    render();save();processQueue();
+  }else if(u.birthday){
+    u.status="待补红心 "+u.hearts+"/"+c.need;
+  }
+}
+async function callBirthday(u){
+  const payload={uid:u.uid,nickname:u.nickname,birthday:u.birthday,hearts:u.hearts};
+  if(typeof window.submitBirthdayAuto==="function"){
+    return await window.submitBirthdayAuto(payload);
+  }
+  return {birthdayText:u.birthday,scoreText:"",speakText:u.nickname+"，"+u.birthday+"，已经点够十颗小红心。"};
+}
+function normalizeResult(u,r){
+  if(typeof r==="string")return r;
+  r=r||{};
+  if(r.speakText)return r.speakText;
+  const b=r.birthdayText||u.birthday, s=r.scoreText?("，"+r.scoreText):"";
+  return u.nickname+"，"+b+s;
+}
+async function processQueue(){
+  if(!state.running||state.speaking||!state.queue.length)return;
+  const id=state.queue[0],u=state.users[id];
+  if(!u){state.queue.shift();return processQueue()}
+  try{
+    u.status="正在打生日";render();
+    const result=await callBirthday(u);
+    const speech=normalizeResult(u,result);
+    await speak(speech);
+    u.processed=true;u.queued=false;u.status="已播报";state.done++;
+    state.queue.shift();log("已完成："+u.nickname+" / "+u.birthday);save();render();
+  }catch(err){
+    u.status="处理失败";log("处理失败："+u.nickname+" / "+err.message);
+    state.queue.shift();u.queued=false;render();
+  }
+  setTimeout(processQueue,400);
+}
+function voices(){return speechSynthesis.getVoices()}
+function loadVoices(){
+  const list=voices();$("voice").innerHTML="";
+  list.forEach((v,i)=>{const o=document.createElement("option");o.value=i;o.textContent=v.name+" - "+v.lang;$("voice").appendChild(o)});
+  const zh=list.findIndex(v=>/zh/i.test(v.lang));if(zh>=0)$("voice").value=zh;
+}
+function speak(text){
+  return new Promise((resolve,reject)=>{
+    if(!text){resolve();return}
+    speechSynthesis.cancel();state.speaking=true;
+    const u=new SpeechSynthesisUtterance(text),list=voices(),idx=+$("voice").value;
+    if(list[idx])u.voice=list[idx];
+    u.rate=+($("rate").value||1);u.volume=+($("volume").value||1);
+    u.onend=()=>{state.speaking=false;resolve()};
+    u.onerror=e=>{state.speaking=false;reject(new Error(e.error||"语音失败"))};
+    speechSynthesis.speak(u);log("播报："+text);
+  });
+}
+function scheduleReminder(){
+  const c=cfg();state.nextReminderAt=now()+(c.min+Math.random()*(c.max-c.min))*1000;
+}
+async function reminderTick(){
+  if(!state.running||state.speaking||state.queue.length)return;
+  const c=cfg();
+  if(now()<state.nextReminderAt)return;
+  if(state.lastGiftAt&&now()-state.lastGiftAt<c.giftIdle*1000){scheduleReminder();return}
+  if(c.remind) await speak(c.remind);
+  scheduleReminder();
+}
+function comment(e){
+  const u=getUser(e);u.lastText=String(e.text||"");
+  const b=parseBirthday(u.lastText);
+  if(b){u.birthday=b;u.status="已记生日";log("记录生日："+u.nickname+" → "+b);maybeQueue(u)}
+  render();save();
+}
+function gift(e){
+  const u=getUser(e),n=Math.max(0,+e.count||1);
+  u.hearts+=n;state.lastGiftAt=now();u.lastText=(e.giftName||"小红心")+" × "+n;
+  log(u.nickname+" +"+n+" 小红心，累计 "+u.hearts);maybeQueue(u);render();save();
+}
+function render(){
+  const us=Object.values(state.users);
+  $("cUsers").textContent=us.length;
+  $("cWait").textContent=us.filter(u=>u.birthday&&!u.processed&&!u.queued).length;
+  $("cQueue").textContent=state.queue.length;
+  $("cDone").textContent=state.done;
+  $("userRows").innerHTML=us.slice().reverse().map(u=>'<tr><td>'+esc(u.nickname)+'</td><td>'+esc(u.birthday||"-")+'</td><td>'+u.hearts+'</td><td><span class="tag '+(u.processed?'ok':u.queued?'wait':'')+'">'+esc(u.status)+'</span></td><td class="muted">'+esc(u.lastText||"-")+'</td></tr>').join("");
+  $("queue").innerHTML=state.queue.length?state.queue.map((id,i)=>{const u=state.users[id];return '<div class="queueItem">#'+(i+1)+'　<b>'+esc(u.nickname)+'</b>　'+esc(u.birthday)+'　小红心 '+u.hearts+'</div>'}).join(""):'<div class="muted">暂无达标观众</div>';
+  $("dot").className="statusDot "+(state.running?"on":"");$("runText").textContent=state.running?"运行中":"关闭";$("toggle").textContent=state.running?"关闭自动模式":"开启自动模式";
+}
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]))}
+function toggle(){state.running=!state.running;if(state.running){scheduleReminder();log("自动模式已开启");processQueue()}else{speechSynthesis.cancel();state.speaking=false;log("自动模式已关闭")}render()}
+$("toggle").onclick=toggle;
+$("testVoice").onclick=()=>speak("语音测试正常，小手指的地方点够十颗小红心。");
+$("stopVoice").onclick=()=>{speechSynthesis.cancel();state.speaking=false};
+$("sendComment").onclick=()=>comment({nickname:$("nick").value.trim()||"测试观众",text:$("comment").value.trim()});
+$("sendHeart").onclick=()=>gift({nickname:$("nick").value.trim()||"测试观众",count:+$("heartCount").value||1,giftName:"小红心"});
+$("testAdapter").onclick=async()=>{const u={uid:"adapter-test",nickname:"接口测试",birthday:"5.27",hearts:10};try{const r=await callBirthday(u);alert("接口返回：\n"+JSON.stringify(r,null,2))}catch(e){alert("接口失败："+e.message)}};
+$("reset").onclick=()=>{if(!confirm("确定清空本场记录？"))return;state.users={};state.queue=[];state.done=0;state.lastGiftAt=0;save();render();log("已清空本场数据")};
+speechSynthesis.onvoiceschanged=loadVoices;loadVoices();load();render();setInterval(reminderTick,1000);
+
+window.BirthdayLiveAuto={comment,gift,speak,state,parseBirthday,processQueue,version:"1.0.0"};
+try{
+ const bc=new BroadcastChannel("birthday-live-v1");
+ bc.onmessage=ev=>{const x=ev.data||{};if(x.type==="comment")comment(x);if(x.type==="gift")gift(x)};
+ window.BirthdayLiveAuto.channel=bc;
+}catch(e){}
+log("V1 已加载。先用右侧“本地测试”验证评论、红心和播报逻辑。");
+})();
+</script>
+</body>
+</html>
