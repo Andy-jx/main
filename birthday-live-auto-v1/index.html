@@ -885,8 +885,10 @@
     done: Number(saved.done) || 0,
     speaking: false,
     lastGiftAt: 0,
-    nextReminderAt: 0
+    nextReminderAt: 0,
+    processing: false
   };
+  Object.values(st.users).forEach((u) => { if (!u.processed) u.queued = false; });
 
   const css = document.createElement("style");
   css.textContent = [
@@ -1112,12 +1114,14 @@
   }
 
   async function processQueue() {
-    if (!st.enabled || st.speaking || !st.queue.length) return;
+    if (!st.enabled || st.speaking || st.processing || !st.queue.length) return;
+    st.processing = true;
 
     const uid = st.queue[0];
     const user = st.users[uid];
     if (!user) {
       st.queue.shift();
+      st.processing = false;
       return processQueue();
     }
 
@@ -1150,6 +1154,7 @@
       renderAuto();
     }
 
+    st.processing = false;
     setTimeout(processQueue, 350);
   }
 
@@ -1253,6 +1258,7 @@
     st.queue = [];
     st.done = 0;
     st.lastGiftAt = 0;
+    st.processing = false;
     saveSession();
     renderAuto();
     log("已清空自动直播本场数据");
