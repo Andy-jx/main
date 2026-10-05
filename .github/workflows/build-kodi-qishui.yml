@@ -1,0 +1,33 @@
+name: Build Kodi Qishui Music
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/kodi-qishui-music
+    paths:
+      - 'kodi-qishui/**'
+      - '.github/workflows/build-kodi-qishui.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Build Kodi addon ZIP
+        working-directory: kodi-qishui
+        run: python build_zip.py
+
+      - name: Upload addon
+        uses: actions/upload-artifact@v4
+        with:
+          name: Kodi-Qishui-Music
+          path: kodi-qishui/dist/*.zip
+          if-no-files-found: error
