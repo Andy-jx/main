@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<addon id="plugin.video.qishui.music" name="汽水音乐 · 视频版" version="0.1.0" provider-name="Andy-jx">
+  <requires>
+    <import addon="xbmc.python" version="3.0.0"/>
+  </requires>
+  <extension point="xbmc.python.pluginsource" library="addon.py">
+    <provides>video audio</provides>
+  </extension>
+  <extension point="xbmc.addon.metadata">
+    <summary lang="zh_CN">在 Kodi 中登录汽水音乐，浏览听歌视频、搜索、歌单和收藏。</summary>
+    <description lang="zh_CN">非官方汽水音乐 Kodi 客户端。Kodi 内扫码登录，登录态仅保存在本机。重点支持“听歌视频”Feed、视频搜索和个人资源；通过可配置的本地 qishui-api 桥接服务访问汽水音乐。</description>
+    <platform>all</platform>
+    <license>MIT</license>
+    <source>https://github.com/Andy-jx/main</source>
+    <news lang="zh_CN">0.1.0：首版。Kodi 内扫码登录；听歌视频；混合搜索；我的歌单/收藏；推荐歌单；视频直播放；本机登录态保存。</news>
+  </extension>
+</addon>
