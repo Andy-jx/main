@@ -18,9 +18,9 @@ class ApiError(RuntimeError):
 
 class QishuiApi:
     def __init__(self, sessionid=""):
-        self.base = (ADDON.getSettingString("api_base") or "http://127.0.0.1:3300").rstrip("/")
+        self.base = (ADDON.getSetting("api_base") or "http://127.0.0.1:3300").rstrip("/")
         try:
-            self.timeout = max(5, int(ADDON.getSettingInt("timeout") or 20))
+            self.timeout = max(5, int(ADDON.getSetting("timeout") or 20))
         except Exception:
             self.timeout = 20
         self.sessionid = str(sessionid or "").strip()
