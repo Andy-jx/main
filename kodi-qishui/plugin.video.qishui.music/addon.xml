@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="plugin.video.qishui.music" name="汽水音乐 · 视频版" version="0.1.0" provider-name="Andy-jx">
+<addon id="plugin.video.qishui.music" name="汽水音乐 · 视频版" version="0.1.1" provider-name="Andy-jx">
   <requires>
     <import addon="xbmc.python" version="3.0.0"/>
   </requires>
@@ -12,6 +12,6 @@
     <platform>all</platform>
     <license>MIT</license>
     <source>https://github.com/Andy-jx/main</source>
-    <news lang="zh_CN">0.1.0：首版。Kodi 内扫码登录；听歌视频；混合搜索；我的歌单/收藏；推荐歌单；视频直播放；本机登录态保存。</news>
+    <news lang="zh_CN">0.1.1：修复部分 Kodi 版本点击扫码登录时报 Invalid setting type；首版功能：Kodi 内扫码登录；听歌视频；混合搜索；我的歌单/收藏；推荐歌单；视频直播放；本机登录态保存。</news>
   </extension>
 </addon>
