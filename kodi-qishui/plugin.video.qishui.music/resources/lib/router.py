@@ -43,7 +43,7 @@ def params():
 
 def page_size():
     try:
-        value = int(ADDON.getSettingInt("page_size") or 20)
+        value = int(ADDON.getSetting("page_size") or 20)
     except Exception:
         value = 20
     return min(50, max(5, value))
@@ -354,7 +354,7 @@ def search():
         return
     try:
         data = api().search_mixed(keyword, int(p.get("cursor") or 0))
-        prefer_video = ADDON.getSettingBool("prefer_video")
+        prefer_video = (ADDON.getSetting("prefer_video") or "true").strip().lower() in ("1", "true", "yes", "on")
         videos = data.get("videos") if isinstance(data, dict) else []
         tracks = data.get("tracks") if isinstance(data, dict) else []
         playlists = data.get("playlists") if isinstance(data, dict) else []
