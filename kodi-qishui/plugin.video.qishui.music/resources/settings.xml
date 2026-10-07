@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<settings version="1">
+  <section id="plugin.video.qishui.music">
+    <category id="network" label="网络">
+      <setting id="api_base" type="string" label="qishui-api 地址">
+        <default>http://127.0.0.1:3300</default>
+      </setting>
+      <setting id="timeout" type="integer" label="接口超时（秒）">
+        <default>20</default>
+        <constraints><minimum>5</minimum><maximum>60</maximum></constraints>
+      </setting>
+    </category>
+    <category id="playback" label="播放">
+      <setting id="prefer_video" type="boolean" label="搜索结果优先显示视频">
+        <default>true</default>
+      </setting>
+      <setting id="page_size" type="integer" label="每页数量">
+        <default>20</default>
+        <constraints><minimum>5</minimum><maximum>50</maximum></constraints>
+      </setting>
+    </category>
+  </section>
+</settings>
