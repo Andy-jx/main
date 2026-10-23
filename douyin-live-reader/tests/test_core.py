@@ -9,14 +9,14 @@ from core import (EventHub, OCRChangeDetector, join_ocr_blocks,
 
 class CoreTests(unittest.TestCase):
     def test_chat_with_name(self):
-        event = parse_visible_line("老茶柚：正月十六", "chat")
+        event = parse_visible_line("观众乙：正月十六", "chat")
         self.assertEqual((event["type"], event["user"], event["content"]),
-                         ("comment", "老茶柚", "正月十六"))
+                         ("comment", "观众乙", "正月十六"))
 
     def test_gift_like_screenshot(self):
-        event = parse_visible_line("宋二姐 送出小心心 💗 x6", "gift")
+        event = parse_visible_line("观众甲 送出小心心 💗 x6", "gift")
         self.assertEqual((event["type"], event["user"], event["gift_name"], event["count"]),
-                         ("gift", "宋二姐", "小心心", 6))
+                         ("gift", "观众甲", "小心心", 6))
 
     def test_gift_prefix_number(self):
         event = parse_visible_line("甲送出了3个玫瑰", "gift")
@@ -35,7 +35,7 @@ class CoreTests(unittest.TestCase):
     def test_split_ocr_gift_row(self):
         def part(x, y, text):
             return [[[x, y], [x + 60, y], [x + 60, y + 15], [x, y + 15]], text, 0.96]
-        lines = join_ocr_blocks([part(3, 12, "宋二姐"), part(78, 12, "送出小心心"),
+        lines = join_ocr_blocks([part(3, 12, "观众甲"), part(78, 12, "送出小心心"),
                                  part(180, 12, "x6")], "gift")
         self.assertEqual(len(lines), 1)
         self.assertEqual(parse_visible_line(lines[0], "gift")["count"], 6)
@@ -43,15 +43,15 @@ class CoreTests(unittest.TestCase):
     def test_split_ocr_comment_row(self):
         def part(x, text):
             return [[[x, 30], [x + 50, 30], [x + 50, 45], [x, 45]], text, 0.97]
-        lines = join_ocr_blocks([part(0, "老茶柚"), part(70, "正月十六")], "chat")
+        lines = join_ocr_blocks([part(0, "观众乙"), part(70, "正月十六")], "chat")
         self.assertEqual(parse_visible_line(lines[0], "chat")["type"], "comment")
 
     def test_chat_level_badge_not_username(self):
         def part(x, text):
             return [[[x, 50], [x + 25, 50], [x + 25, 67], [x, 67]], text, 0.99]
-        line = join_ocr_blocks([part(0, "11"), part(35, "老茶柚"), part(125, "正月十六")], "chat")[0]
+        line = join_ocr_blocks([part(0, "11"), part(35, "观众乙"), part(125, "正月十六")], "chat")[0]
         event = parse_visible_line(line, "chat")
-        self.assertEqual((event["user"], event["content"]), ("老茶柚", "正月十六"))
+        self.assertEqual((event["user"], event["content"]), ("观众乙", "正月十六"))
 
     def test_ocr_dedup(self):
         detector = OCRChangeDetector(channel="chat")
