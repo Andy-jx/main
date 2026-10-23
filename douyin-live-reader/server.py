@@ -11,7 +11,7 @@ import sys
 import threading
 from urllib.parse import urlsplit
 
-from core import normalize_sdk_batch
+from core import normalize_sdk_batch, normalize_external_batch
 
 
 def viewer_path() -> Path:
@@ -119,7 +119,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(413, {"error": "invalid body size"})
         try:
             document = json.loads(self.rfile.read(size).decode("utf-8"))
-            events = normalize_sdk_batch(document)
+            events = normalize_sdk_batch(document) or normalize_external_batch(document)
         except (ValueError, UnicodeError, TypeError, OverflowError):
             return self._json(400, {"error": "invalid payload"})
         accepted = sum(self.server.hub.publish(event) for event in events)

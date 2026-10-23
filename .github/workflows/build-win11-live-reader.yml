@@ -38,7 +38,7 @@ jobs:
       - name: Publish Windows download
         uses: actions/upload-artifact@v4
         with:
-          name: JXLiveReader-Win11
+          name: JXLiveReader-Win11-V2
           path: dist/JXLiveReader.exe
           if-no-files-found: error
           retention-days: 30
