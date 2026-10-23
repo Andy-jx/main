@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>小5直播互动消息台 V2</title>
+<style>
+:root{font-family:"Microsoft YaHei","Segoe UI",sans-serif;color-scheme:dark}
+*{box-sizing:border-box}body{margin:0;background:#0b1120;color:#e5edff}
+header{padding:24px max(22px,calc((100vw - 1150px)/2));background:linear-gradient(120deg,#1b2a51,#0a1935);border-bottom:1px solid #2d426b}
+h1{font-size:26px;margin:0 0 5px}.muted{color:#9caed1;font-size:13px}
+main{max-width:1150px;margin:24px auto;padding:0 22px}
+.cards{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.card{background:#18233a;border:1px solid #293e61;border-radius:13px;padding:17px}
+.card small{color:#a6b6d3;font-size:13px}.card strong{display:block;font-size:29px;margin:6px 0 0;color:#fafcff}
+.toolbar{margin:20px 0 12px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+button,select{font:inherit;background:#1b2b47;color:#e4efff;border:1px solid #43577d;border-radius:8px;padding:9px 12px;cursor:pointer}
+.panel{background:#141f35;border:1px solid #2b3d5e;border-radius:14px;overflow:hidden}
+.row{display:flex;gap:14px;align-items:flex-start;padding:15px 18px;border-bottom:1px solid #253650}
+.row:last-child{border-bottom:0}.pill{font-size:12px;border-radius:6px;padding:5px 8px;min-width:58px;text-align:center;background:#253d65;color:#bcd6ff}
+.pill.gift{background:#593849;color:#ffdce6}.pill.comment{background:#175240;color:#abffe2}
+.pill.like{background:#5a4926;color:#ffe7a5}.pill.system{background:#35415b;color:#aabbdd}
+.event{flex:1;min-width:0;overflow-wrap:anywhere}.event b{color:#fff}.event p{margin:7px 0 0;color:#bfd0f1}
+.event small{margin-left:10px;color:#8198c5}time{color:#7b94bc;font-size:12px;white-space:nowrap}
+.empty{padding:44px;color:#8196ba;text-align:center}.live{display:inline-flex;align-items:center;gap:7px}
+.dot{height:9px;width:9px;background:#eebc54;border-radius:50%}.online .dot{background:#30d39b}
+footer{padding-top:14px;color:#899dbf;font-size:12px;line-height:1.6}
+@media(max-width:750px){.cards{grid-template-columns:repeat(2,1fr)}.row{padding:12px 10px;gap:8px}h1{font-size:21px}}
+</style>
+</head>
+<body>
+<header>
+<h1>小5 · 抖音直播实时互动消息台</h1>
+<div class="muted"><span class="live" id="status"><i class="dot"></i><span id="state">正在连接监听器…</span></span>　｜　双区域 OCR + 本地 SDK 消息桥接</div>
+</header>
+<main>
+<section class="cards">
+<div class="card"><small>本次页面事件</small><strong id="total">0</strong></div>
+<div class="card"><small>弹幕</small><strong id="comments">0</strong></div>
+<div class="card"><small>礼物事件</small><strong id="gifts">0</strong></div>
+<div class="card"><small>识别礼物数量</small><strong id="giftCount">0</strong></div>
+<div class="card"><small>点赞事件</small><strong id="likes">0</strong></div>
+</section>
+<div class="toolbar"><b>实时事件列表</b><div>
+<select id="kind" aria-label="按消息类型筛选">
+<option value="all">全部消息</option><option value="comment">只看弹幕</option>
+<option value="gift">只看礼物</option><option value="system">只看系统消息</option>
+<option value="text">未分类文本</option></select>
+<select id="source" aria-label="按数据来源筛选">
+<option value="all">所有来源</option><option value="ocr">屏幕 OCR</option>
+<option value="official-sdk">官方 SDK</option><option value="external-bridge">外部桥接</option><option value="demo">模拟测试</option></select>
+<button id="clear">清空页面</button>
+</div></div>
+<div class="panel" id="items"><div class="empty">等待开播互动消息…</div></div>
+<footer>屏幕识别模式依赖直播伴侣界面可见文字，会出现遗漏、误读、重复抑制；此处礼物数量不是金额，不可用于结算。绿色连接指示仅代表本机监听器在线，不代表已连通抖音官方 SDK。</footer>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const events=[], seen=new Set();
+const display={comment:"弹幕",gift:"礼物",like:"点赞",text:"文本",system:"系统",member:"进场",follow:"关注",fansclub:"粉丝团"};
+function add(e){
+  const identity=[e.id||"",e.timestamp||"",e.source||"",e.user||"",e.content||"",e.count||""].join("|");
+  if(seen.has(identity))return;
+  seen.add(identity);events.push(e);
+  if(events.length>500){const old=events.shift();const oldId=[old.id||"",old.timestamp||"",old.source||"",old.user||"",old.content||"",old.count||""].join("|");seen.delete(oldId)}
+  render();
+}
+function render(){
+  $("total").textContent=events.length;
+  $("comments").textContent=events.filter(e=>e.type==="comment").length;
+  $("gifts").textContent=events.filter(e=>e.type==="gift").length;
+  $("giftCount").textContent=events.filter(e=>e.type==="gift").reduce((n,e)=>n+(Number(e.count)||1),0);
+  $("likes").textContent=events.filter(e=>e.type==="like").length;
+  const kind=$("kind").value, source=$("source").value;
+  const shown=events.filter(e=>(kind==="all"||e.type===kind)&&(source==="all"||e.source===source)).slice(-150).reverse();
+  const container=$("items");container.replaceChildren();
+  if(!shown.length){const empty=document.createElement("div");empty.className="empty";empty.textContent="等待符合条件的消息…";container.append(empty);return}
+  const fragment=document.createDocumentFragment();
+  shown.forEach(e=>{
+    const item=document.createElement("div");item.className="row";
+    const badge=document.createElement("span");badge.className="pill "+e.type;
+    badge.textContent=display[e.type]||"事件";
+    const body=document.createElement("div");body.className="event";
+    const name=document.createElement("b");name.textContent=e.user||"直播间系统";
+    const origin=document.createElement("small");origin.textContent=e.source==="official-sdk"?"官方数据":e.source==="external-bridge"?"外部采集器":e.source==="demo"?"测试事件":"屏幕识别";
+    const words=document.createElement("p");words.textContent=String(e.content||"")+(e.type==="gift"?" ×"+String(e.count||1):"");
+    body.append(name,origin,words);
+    const time=document.createElement("time");const when=new Date(e.timestamp);time.textContent=isNaN(when.getTime())?"":when.toLocaleTimeString("zh-CN",{hour12:false});
+    item.append(badge,body,time);fragment.append(item);
+  });
+  container.append(fragment);
+}
+$("kind").addEventListener("change",render);
+$("source").addEventListener("change",render);
+$("clear").addEventListener("click",()=>{events.length=0;seen.clear();render()});
+const stream=new EventSource("/api/stream");
+stream.onopen=()=>{$("status").classList.add("online");$("state").textContent="本机监听器已连接"};
+stream.onerror=()=>{$("status").classList.remove("online");$("state").textContent="本机连接中断，正在自动重连"};
+stream.onmessage=message=>{try{add(JSON.parse(message.data))}catch(e){console.warn(e)}};
+fetch("/api/history").then(r=>r.json()).then(items=>items.forEach(add)).catch(()=>{});
+</script>
+</body>
+</html>
