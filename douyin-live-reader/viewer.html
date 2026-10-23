@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>小5直播消息监控</title>
+<style>
+:root{color-scheme:dark;font-family:"Microsoft YaHei","Segoe UI",sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:#0b1020;color:#e8efff}
+header{padding:26px max(24px,calc((100vw - 1100px)/2));background:linear-gradient(115deg,#151e3b,#0c1832);border-bottom:1px solid #24345d}
+h1{font-size:27px;margin:0 0 7px} .muted{color:#97a8ce;font-size:13px}
+main{max-width:1100px;margin:24px auto;padding:0 24px}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.card{background:#151d34;border:1px solid #283654;padding:17px 20px;border-radius:15px}
+.card strong{display:block;font-size:29px;margin:8px 0 0;color:#f9fafb}
+.card span{color:#a7b7d5;font-size:13px}
+.line{display:flex;align-items:center;justify-content:space-between;gap:15px;margin:22px 0 12px}
+button,select{color:#e9f0ff;background:#1c2b49;border:1px solid #405782;border-radius:9px;padding:9px 13px;font:inherit}
+button{cursor:pointer}
+#status{display:inline-flex;align-items:center;gap:8px}.dot{width:8px;height:8px;border-radius:50%;background:#f6bb55}
+#status.ok .dot{background:#32d399}
+.panel{background:#141c30;border:1px solid #2a3858;border-radius:15px;overflow:hidden}
+.item{display:flex;gap:14px;align-items:flex-start;padding:17px 19px;border-bottom:1px solid #263450;animation:fade .2s ease}
+.item:last-child{border-bottom:none}
+@keyframes fade{from{opacity:.3;transform:translateY(-4px)}}
+.pill{font-size:12px;min-width:50px;text-align:center;border-radius:6px;padding:5px 6px;background:#263655;color:#bcd1ff}
+.pill.gift{background:#563544;color:#ffd5dd}.pill.comment{background:#174638;color:#9afad7}
+.pill.like{background:#514025;color:#fce3a2}.pill.demo{outline:1px dashed #ffd66c}
+.body{min-width:0;flex:1;overflow-wrap:anywhere}.body b{color:#eef3ff;margin-right:8px}.body p{margin:7px 0 0;color:#b7c6e5}
+time{white-space:nowrap;font-size:12px;color:#7890ba}
+.empty{padding:35px;text-align:center;color:#7e91b8}
+@media(max-width:700px){.cards{grid-template-columns:repeat(2,1fr)}header{padding:25px}h1{font-size:22px}.item{gap:8px;padding:14px 10px}}
+</style>
+</head>
+<body>
+<header><h1>小5 · 抖音直播实时互动</h1>
+<div class="muted"><span id="status"><i class="dot"></i><span id="connection">正在连接本机监听器…</span></span>
+　｜　仅显示本机收到的消息，OCR 模式可能遗漏或误识别</div></header>
+<main>
+<div class="cards">
+<div class="card"><span>本次显示消息</span><strong id="all">0</strong></div>
+<div class="card"><span>弹幕</span><strong id="comment">0</strong></div>
+<div class="card"><span>礼物</span><strong id="gift">0</strong></div>
+<div class="card"><span>点赞事件</span><strong id="like">0</strong></div>
+</div>
+<div class="line"><b>实时消息流水</b><div><select id="filter"><option value="all">全部</option><option value="comment">只看弹幕</option><option value="gift">只看礼物</option><option value="text">只看未分类</option></select> <button id="clear">清空页面</button></div></div>
+<div class="panel" id="items"><div class="empty">等待直播间消息…</div></div>
+<p class="muted">本面板地址：127.0.0.1:17321。演示事件标有「测试」；礼物数量不是礼物价值，不能据此统计收入。</p>
+</main>
+<script>
+const allEvents = [];
+const names = {comment:"弹幕",gift:"礼物",like:"点赞",text:"文本",follow:"关注",fansclub:"粉丝团"};
+const $ = id => document.getElementById(id);
+function update(){
+  const totals={comment:0,gift:0,like:0}; allEvents.forEach(e=>{if(totals[e.type]!==undefined)totals[e.type]++});
+  $("all").textContent=allEvents.length; Object.keys(totals).forEach(k=>$(k).textContent=totals[k]);
+  const kind=$("filter").value; const selected=allEvents.filter(e=>kind==="all"||e.type===kind).slice(-120).reverse();
+  const view=$("items"); view.replaceChildren();
+  if(!selected.length){const empty=document.createElement("div");empty.className="empty";empty.textContent="还没有符合筛选条件的消息";view.append(empty);return}
+  selected.forEach(e=>{
+    const row=document.createElement("div");row.className="item";
+    const pill=document.createElement("span");pill.className="pill "+e.type+(e.source==="demo"?" demo":"");pill.textContent=(names[e.type]||e.type)+(e.source==="demo"?"·测试":"");
+    const body=document.createElement("div");body.className="body";
+    const title=document.createElement("b");title.textContent=e.user||"系统";
+    const content=document.createElement("p");
+    content.textContent=e.content+(e.type==="gift"?" × "+(e.count||1):"");
+    const source=document.createElement("small");source.className="muted";source.textContent=e.source==="official-sdk"?"官方结构化事件":(e.source==="demo"?"演示事件":"屏幕文字识别");
+    body.append(title,source,content);
+    const clock=document.createElement("time");const date=new Date(e.timestamp);clock.textContent=isNaN(date.getTime())?"":date.toLocaleTimeString("zh-CN",{hour12:false});
+    row.append(pill,body,clock);view.append(row);
+  });
+}
+function add(e){allEvents.push(e);if(allEvents.length>300)allEvents.shift();update()}
+$("filter").addEventListener("change",update);
+$("clear").addEventListener("click",()=>{allEvents.length=0;update()});
+fetch("/api/history").then(r=>r.json()).then(list=>{list.forEach(add)}).catch(()=>{});
+const stream=new EventSource("/api/stream");
+stream.onopen=()=>{$("status").classList.add("ok");$("connection").textContent="已连接本机消息服务"};
+stream.onerror=()=>{$("status").classList.remove("ok");$("connection").textContent="连接中断，自动重试"};
+stream.onmessage=message=>{try{add(JSON.parse(message.data))}catch(err){console.warn(err)}};
+</script>
+</body>
+</html>

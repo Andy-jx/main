@@ -1,0 +1,44 @@
+name: Build Win11 Live Reader
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'douyin-live-reader/**'
+      - '.github/workflows/build-win11-live-reader.yml'
+  pull_request:
+    paths:
+      - 'douyin-live-reader/**'
+      - '.github/workflows/build-win11-live-reader.yml'
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r douyin-live-reader/requirements.txt pyinstaller
+      - name: Core tests
+        shell: pwsh
+        run: python -m unittest discover -s douyin-live-reader/tests -v
+      - name: Build single executable
+        shell: pwsh
+        run: |
+          pyinstaller --noconfirm --clean --onefile --windowed --name JXLiveReader --paths douyin-live-reader --collect-all rapidocr_onnxruntime --collect-all onnxruntime --add-data "douyin-live-reader/viewer.html;." douyin-live-reader/app.py
+      - name: Publish Windows download
+        uses: actions/upload-artifact@v4
+        with:
+          name: JXLiveReader-Win11
+          path: dist/JXLiveReader.exe
+          if-no-files-found: error
+          retention-days: 30
